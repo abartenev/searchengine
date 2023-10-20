@@ -13,7 +13,7 @@ public class Page {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
     @ManyToOne
-    @JoinColumn(name = "id",insertable = false,updatable = false)
+    @JoinColumn
     private Site site_id; //id веб-сайта из таблицы site
     private String path; //адрес страницы
     private Integer code; //http ответ

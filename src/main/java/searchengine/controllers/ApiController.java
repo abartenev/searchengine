@@ -1,13 +1,15 @@
 package searchengine.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.repositories.siteRepo;
+import searchengine.dto.indexing.indexStatus;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.Site;
-import searchengine.model.indexStatus;
+import searchengine.repository.siteRepo;
+import searchengine.services.IndexingService;
 import searchengine.services.StatisticsService;
 
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ public class ApiController {
     private final StatisticsService statisticsService;
     @Autowired
     private siteRepo siteRepo;
+    private IndexingService indexingService;
 
     public ApiController(StatisticsService statisticsService) {
         this.statisticsService = statisticsService;
@@ -32,8 +35,8 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public ResponseEntity<indexStatus> startIndexing(@RequestParam boolean flag) {
-        return ResponseEntity.ok(new indexStatus(flag));
+    public ResponseEntity<indexStatus> startIndexing() {
+        return ResponseEntity.ok(indexingService.startIndexing());
     }
 
     @GetMapping("/sites/")

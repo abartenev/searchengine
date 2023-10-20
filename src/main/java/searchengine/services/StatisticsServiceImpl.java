@@ -1,7 +1,6 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
@@ -13,8 +12,6 @@ import searchengine.dto.statistics.TotalStatistics;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.TreeSet;
-import java.util.concurrent.ForkJoinPool;
 
 @Service
 @RequiredArgsConstructor
@@ -22,8 +19,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private final Random random = new Random();
     private final SitesList sites;
-    @Autowired
-    private searchengine.repositories.siteRepo siteRepo;
 
     @Override
     public StatisticsResponse getStatistics() {
@@ -42,15 +37,6 @@ public class StatisticsServiceImpl implements StatisticsService {
         List<Site> sitesList = sites.getSites();
         for (int i = 0; i < sitesList.size(); i++) {
             Site site = sitesList.get(i);
-
-            int availableProcessosrs = Runtime.getRuntime().availableProcessors();
-            ForkJoinPool forkJoinPool = new ForkJoinPool(availableProcessosrs);
-            TreeSet<String> strSet = new TreeSet<>();
-            ScrapTask scrapTask = new ScrapTask(site.getUrl(), new TreeSet<>());
-            strSet = forkJoinPool.invoke(scrapTask);
-            searchengine.model.Site site1 = new searchengine.model.Site();
-            site1.setName(site.getName());
-            siteRepo.save(site1);
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
