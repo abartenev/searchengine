@@ -13,13 +13,11 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
-<!--    <searchengine.repositories>-->
-<!--        <repository>-->
-<!--            <id>skillbox-gitlab</id>-->
-<!--            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>-->
-<!--        </repository>-->
-<!--    </searchengine.repositories>-->
     <repositories>
+        <repository>
+            <id>skillbox-gitlab</id>
+            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>
+        </repository>
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
@@ -75,7 +73,6 @@
 <!--            <artifactId>morphology</artifactId>-->
 <!--            <version>1.5</version>-->
 <!--        </dependency>-->
-<!--        18-->
 <!--        <dependency>-->
 <!--            <groupId>org.apache.lucene.morphology</groupId>-->
 <!--            <artifactId>dictionary-reader</artifactId>-->
