@@ -13,13 +13,25 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
+<!--    <searchengine.repositories>-->
+<!--        <repository>-->
+<!--            <id>skillbox-gitlab</id>-->
+<!--            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>-->
+<!--        </repository>-->
+<!--    </searchengine.repositories>-->
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.7.1</version>
         <relativePath/>
     </parent>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -33,6 +45,52 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.16.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.demidko</groupId>
+            <artifactId>aot</artifactId>
+            <version>2022.11.28</version>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.lucene.morphology</groupId>-->
+<!--            <artifactId>morph</artifactId>-->
+<!--            <version>1.5</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.lucene.analysis</groupId>-->
+<!--            <artifactId>morphology</artifactId>-->
+<!--            <version>1.5</version>-->
+<!--        </dependency>-->
+<!--        18-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.lucene.morphology</groupId>-->
+<!--            <artifactId>dictionary-reader</artifactId>-->
+<!--            <version>1.5</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.lucene.morphology</groupId>-->
+<!--            <artifactId>english</artifactId>-->
+<!--            <version>1.5</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.apache.lucene.morphology</groupId>-->
+<!--            <artifactId>russian</artifactId>-->
+<!--            <version>1.5</version>-->
+<!--        </dependency>-->
     </dependencies>
 
 </project>
