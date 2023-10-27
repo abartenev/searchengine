@@ -5,11 +5,13 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import searchengine.config.SitesList;
 import searchengine.dto.indexing.indexStatus;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.Site;
 import searchengine.repository.siteRepo;
 import searchengine.services.IndexingService;
+import searchengine.services.IndexingServiceImpl;
 import searchengine.services.StatisticsService;
 
 import java.util.ArrayList;
@@ -21,12 +23,13 @@ import java.util.Optional;
 public class ApiController {
 
     private final StatisticsService statisticsService;
+    private final IndexingService indexingService;
     @Autowired
     private siteRepo siteRepo;
-    private IndexingService indexingService;
 
-    public ApiController(StatisticsService statisticsService) {
+    public ApiController(StatisticsService statisticsService,IndexingService indexingService) {
         this.statisticsService = statisticsService;
+        this.indexingService = indexingService;
     }
 
     @GetMapping("/statistics")

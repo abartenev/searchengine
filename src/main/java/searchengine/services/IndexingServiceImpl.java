@@ -18,14 +18,15 @@ import java.util.concurrent.ForkJoinTask;
 @Service
 @RequiredArgsConstructor
 public class IndexingServiceImpl implements IndexingService {
-    private final SitesList sites;
     @Autowired
     private searchengine.repository.siteRepo siteRepo;
+    @Autowired
     private searchengine.repository.pageRepo pageRepo;
     private ForkJoinPool forkJoinPool; //пул потоков для парсинга и индексации
     private TreeSet<String> strSet; //сет для хранения и записи полученных ссылок сайта
     //private ScrapTask scrapTask; //задание для отслеживания результата
     private ForkJoinTask task;
+    private final SitesList sites;
 
     @Override
     public indexStatus startIndexing() {
@@ -46,6 +47,7 @@ public class IndexingServiceImpl implements IndexingService {
                 System.out.println(site2.getName() + " is " + site2.getStatus());
             }
             System.out.println("Количество выполняемых потоков " + forkJoinPool.getRunningThreadCount());
+            return new indexStatus(false);
         } else {
             if (forkJoinPool.getRunningThreadCount() == 0) {
                 System.out.println("Количество выполняемых потоков " + 0 + ". Сохраняем результат и завершим пул потоков");

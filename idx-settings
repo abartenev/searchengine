@@ -1,5 +1,3 @@
-# example values
-
 indexing-settings:
   sites:
     - url: https://www.lenta.ru

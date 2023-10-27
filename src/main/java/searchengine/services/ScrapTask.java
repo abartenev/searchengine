@@ -6,6 +6,7 @@ import org.jsoup.nodes.Document;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -62,8 +63,15 @@ public class ScrapTask extends RecursiveTask<TreeSet<String>> {
                     }
                 }
                 for (ScrapTask task : scrapTasks) {
+                    if (keys.size() >= 100) {
+                        task.quietlyComplete();
+                        continue;
+                    }
                     task.join();
                 }
+                System.out.println(ForkJoinTask.getPool().getActiveThreadCount());
+                System.out.println(ForkJoinTask.getPool().isShutdown());
+
             } catch (IOException e) {
                 System.out.println("Получили ошибку при обработке адреса e=" + e.getLocalizedMessage());
                 throw new RuntimeException(e);
