@@ -9,8 +9,8 @@ public class indexStatus {
     private final boolean result;
     private final String error;
 
-    public indexStatus(boolean result) {
+    public indexStatus(boolean result,String errortext) {
         this.result = result;
-        this.error = result ? null : "Индексация уже запущена";
+        this.error = errortext;
     }
 }

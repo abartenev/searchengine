@@ -1,14 +1,16 @@
 package searchengine.model;
 
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Site")
+@Table(name = "siteentity")
 @Data
-public class Site {
+public class SiteEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
@@ -23,7 +25,7 @@ public class Site {
     @Column(columnDefinition = "TEXT")
     private String name; //название сайта
 
-    public Site(String url, String name) {
+    public SiteEntity(String url, String name) {
         this.url = url;
         this.name = name;
         this.setStatus_time(LocalDateTime.now());
