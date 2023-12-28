@@ -1,10 +1,10 @@
 package searchengine.config;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
-@Setter
-@Getter
+@Data
+@EqualsAndHashCode
 public class Site {
     private String url;
     private String name;

@@ -1,14 +1,15 @@
-package searchengine.services;
+package searchengine.source;
 
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import searchengine.dao.pageRepo;
-import searchengine.dao.siteRepo;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
+import searchengine.model.Status;
+import searchengine.repositories.indexRepo;
+import searchengine.repositories.lemmaRepo;
+import searchengine.repositories.pageRepo;
+import searchengine.repositories.siteRepo;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -18,56 +19,50 @@ import java.util.concurrent.RecursiveTask;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-
 @RequiredArgsConstructor
 public class ScrapTask extends RecursiveTask<TreeSet<String>> {
     private final siteRepo siteRepo;
     private final pageRepo pageRepo;
+    private final lemmaRepo lemmaRepo;
+    private final indexRepo indexRepo;
     private final TreeSet<String> keys;
     private final SiteEntity siteEntity;
+    private final String checkingUrl;
     private Document document;
-//    private final String url2scrap;
-//    private volatile SiteEntity siteEntity2Scrap;
-//    public ScrapTask(SiteEntity startURLsite, TreeSet<String> p_keys) {
-//        keys = p_keys;
-//        url2scrap = startURLsite.getUrl();
-//    }
-//
-//    @Autowired
-//    public ScrapTask(String startURLsite, TreeSet<String> p_keys, SiteEntity scrappingSiteEntity) {
-//        keys = p_keys;
-//        url2scrap = startURLsite;
-//        this.siteEntity2Scrap = scrappingSiteEntity;
-//    }
-
-
+    private String url2check;
 
     @Override
     protected TreeSet<String> compute() {
+        url2check = null;
+        document = null;
         try {
             Random rand = new Random();
             int timeMs = rand.nextInt(200, 2000);
-            System.out.println("Поток " + Thread.currentThread().getName() + ". Таймаут " + timeMs + " ms. Размер keys = " + keys.size());
+            System.out.println("Поток " + Thread.currentThread().getName() + ". Таймаут " + timeMs + " ms. Размер keys = " + keys.size() + " checkingUrl = " + checkingUrl);
             TimeUnit.MILLISECONDS.sleep(timeMs);
             try {
-                document = Jsoup.connect(siteEntity.getUrl()) //"https://lenta.ru/"
+                document = Jsoup.connect(checkingUrl) //"https://lenta.ru/"
                         .userAgent("Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36").referrer("https://lenta.ru/") //откуда отправляем запрос
                         .timeout(24000).followRedirects(true).get();
-                //обрабатываем загруженную информацию
-//                System.out.println("Формируем список в потоке: " + Thread.currentThread().getName());
                 Set<String> tempSet = document.select("a[href]").stream().filter(element -> element.attr("href").startsWith("/")).filter(element -> !element.attr("href").matches(".*(\\?|html).*")).map(element -> element.absUrl("href")).collect(Collectors.toSet());
                 List<ScrapTask> scrapTasks = new ArrayList<>();
-                for (String url2check : tempSet) {
+                Iterator<String> urlsIter = tempSet.iterator();
+                while (urlsIter.hasNext()) {
+                    url2check = urlsIter.next();
                     if (!keys.contains(url2check) && url2check != siteEntity.getUrl()) {
                         keys.add(url2check);
                         Page page = new Page(siteEntity, url2check);
+                        page.setContent(document.wholeText());
+                        page.setCode(200);
                         siteEntity.setStatus_time(LocalDateTime.now());
                         System.out.println("Page = " + page.getPath() + " ");
                         pageRepo.save(page);
-                        ScrapTask task = new ScrapTask(siteRepo, pageRepo, keys, siteEntity);
+                        //pageProcessing(page); //Получаем леммы по странице
+                        ScrapTask task = new ScrapTask(siteRepo, pageRepo, lemmaRepo, indexRepo, keys, siteEntity, url2check);
                         task.fork();
                         scrapTasks.add(task);
                     }
+                    break;
                 }
                 for (ScrapTask task : scrapTasks) {
                     task.join();
@@ -76,11 +71,26 @@ public class ScrapTask extends RecursiveTask<TreeSet<String>> {
                 System.out.println("ForkJoinTask.getPool().isShutdown() " + ForkJoinTask.getPool().isShutdown());
                 if (ForkJoinTask.getPool().getActiveThreadCount() == 1) {
                     ForkJoinTask.getPool().shutdown();
+
                     System.out.println("ForkJoinTask.getPool().shutdown() and return keys");
+                    siteEntity.setStatus(Status.INDEXED);
+                    siteRepo.save(siteEntity);
                     return keys;
                 }
             } catch (IOException e) {
-                System.out.println("Получили ошибку при обработке адреса e=" + e.getLocalizedMessage());
+                if (url2check == null || url2check == siteEntity.getUrl()) {
+                    System.out.println("Получили ошибку при обработке первого адреса e=" + e.getLocalizedMessage() + ".\n" + "Выходим.");
+                    Page page = new Page(siteEntity, checkingUrl);
+                    page.setContent(e.getLocalizedMessage());
+                    page.setCode(408);
+                    siteEntity.setStatus_time(LocalDateTime.now());
+                    System.out.println("Page = " + page.getPath() + " ");
+                    pageRepo.save(page);
+                    siteRepo.save(siteEntity);
+                    return keys;
+                } else {
+                    System.out.println("Получили ошибку при обработке адреса e=" + e.getLocalizedMessage());
+                }
                 throw new RuntimeException(e);
             } catch (RuntimeException e) {
                 if (e.getLocalizedMessage().contains("HTTP error fetching URL")) {

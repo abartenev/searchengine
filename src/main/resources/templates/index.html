@@ -9,7 +9,10 @@
 <!--[if IE 9]>
 <html class="ie9" lang="ru">
 <![endif]-->
-<!--[if gt IE 9]><!--> <html lang="ru"> <!--<![endif]-->
+<!--[if gt IE 9]><!-->
+<!--<html lang="ru" xmlns:th="http://www.w3.org/1999/xhtml"> &lt;!&ndash;<![endif]&ndash;&gt;-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
 <head>
   <title>Site Search Engine</title>
   <meta name="description" content="Site Search Engine">
@@ -129,8 +132,9 @@
                   <div class="form-group">
                     <div class="form-selectWrap">
                       <!-- - var options = setOptions(items, ['value', 'selected', 'disabled']);-->
-                      <select class="form-select" name="siteEntity">
-                        <option value="" selected="selected">All sites
+                      <select class="form-select" name="site">
+                        <option value="All" selected="selected">All sites</option>
+                        <option th:each="site : ${sites}" th:value="${site.getUrl()}" th:text="${site.getName()}">
                         </option>
                       </select>
                     </div>

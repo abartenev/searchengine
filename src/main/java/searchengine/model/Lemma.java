@@ -11,7 +11,9 @@ public class Lemma {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
-    private Integer site_id; //id веб-сайта из таблицы site
+    @ManyToOne
+    @JoinColumn
+    private SiteEntity site_id; //id веб-сайта из таблицы site
     private String lemma; //нормальная форма слова (лемма)
     /**
      * количество страниц, на которых слово встречается хотя бы один раз.

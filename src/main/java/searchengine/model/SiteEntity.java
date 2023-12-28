@@ -1,13 +1,15 @@
 package searchengine.model;
 
 import lombok.Data;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@Component
+@RequiredArgsConstructor
 @Table(name = "siteentity")
 @Data
 public class SiteEntity {
@@ -20,7 +22,7 @@ public class SiteEntity {
     private LocalDateTime status_time; //дата и время статуса
     @Column(columnDefinition = "TEXT")
     private String last_error; //текст ошибки индексации
-    @Column(columnDefinition = "MEDIUMTEXT")
+    @Column(columnDefinition = "MEDIUMTEXT" )
     private String url; //адрес главной страницы
     @Column(columnDefinition = "TEXT")
     private String name; //название сайта

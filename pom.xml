@@ -13,16 +13,21 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>skillbox-gitlab</id>
-            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
+<!--    <repositories>-->
+<!--&lt;!&ndash;        <repository>&ndash;&gt;-->
+<!--&lt;!&ndash;            <id>skillbox-gitlab</id>&ndash;&gt;-->
+<!--&lt;!&ndash;            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>&ndash;&gt;-->
+<!--&lt;!&ndash;        </repository>&ndash;&gt;-->
+<!--        <repository>-->
+<!--            <id>org.apache.lucene.morphology</id>-->
+<!--            <name>local lucene morphology repository</name>-->
+<!--            <url>file:${project.basedir}\lib</url>-->
+<!--        </repository>-->
+<!--        <repository>-->
+<!--            <id>jitpack.io</id>-->
+<!--            <url>https://jitpack.io</url>-->
+<!--        </repository>-->
+<!--    </repositories>-->
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -40,6 +45,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.thymeleaf/thymeleaf -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+            <version>3.1.2.RELEASE</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.thymeleaf/thymeleaf-spring5 -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf-spring5</artifactId>
+            <version>3.1.2.RELEASE</version>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -62,12 +80,14 @@
             <artifactId>jsoup</artifactId>
             <version>1.16.1</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-collections4 -->
         <dependency>
-            <groupId>com.github.demidko</groupId>
-            <artifactId>aot</artifactId>
-            <version>2022.11.28</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.4</version>
         </dependency>
-<!--        <dependency>-->
+
+        <!--        <dependency>-->
 <!--            <groupId>org.apache.lucene.morphology</groupId>-->
 <!--            <artifactId>morph</artifactId>-->
 <!--            <version>1.5</version>-->
@@ -93,5 +113,25 @@
 <!--            <version>1.5</version>-->
 <!--        </dependency>-->
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>org.apache.lucene.morphology</id>
+            <name>local lucene morphology repo</name>
+            <url>file:${project.basedir}\lib</url>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>skillbox-gitlab</id>
+            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>
+        </repository>
+
+        <snapshotRepository>
+            <id>skillbox-gitlab</id>
+            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 </project>

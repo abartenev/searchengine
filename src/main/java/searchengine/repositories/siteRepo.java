@@ -1,4 +1,4 @@
-package searchengine.dao;
+package searchengine.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,4 +11,5 @@ public interface siteRepo extends JpaRepository<SiteEntity, Integer> {
 
     @Query("SELECT t FROM SiteEntity t WHERE t.url = :urlsite")
     SiteEntity findBySiteUrl(@Param("urlsite") String urlsite);
+
 }

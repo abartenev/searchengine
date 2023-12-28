@@ -1,11 +1,15 @@
 package searchengine.model;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
-import javax.persistence.*;
 import javax.persistence.Index;
+import javax.persistence.*;
 
 @Entity
+@Component
+@RequiredArgsConstructor
 @Table(name = "page",indexes = {@Index(name = "path_idx",columnList = "path")})
 @Data
 public class Page {

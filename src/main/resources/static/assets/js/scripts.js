@@ -1636,7 +1636,7 @@ var API = function(){
                             var $this = $(this);
                             if ($this.is(':hidden')){
                                 $this.addClass('Tabs-block_update')
-                            };
+                            }
                         });
                         $statistics.find('.HideBlock').each(function(){
                             var $this = $(this);
@@ -1694,12 +1694,12 @@ var API = function(){
             var altsend = $element.data('altsend');
             $element.data('altsend', $element.data('send'));
             $element.data('send', altsend);
-        };
+        }
         if (check) {
             $element.addClass('btn_check');
         } else {
             $element.removeClass('btn_check');
-        };
+        }
         if (!wave) {
             $element.trigger('changeCheck');
         }
