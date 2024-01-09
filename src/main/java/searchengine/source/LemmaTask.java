@@ -1,5 +1,6 @@
 package searchengine.source;
 
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.lucene.morphology.LuceneMorphology;
 import searchengine.model.Index;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 
 
 @Transactional
+@Log4j2
 public class LemmaTask extends RecursiveAction {
     private final List<Page> pages;
     private final lemmaRepo lemmaRepo;
@@ -47,52 +49,33 @@ public class LemmaTask extends RecursiveAction {
     @Override
     protected void compute() {
         int parallelCount = ForkJoinTask.getPool().getParallelism();
-/*        if (page == null) {
-            List<LemmaTask> lemmaTasks = new ArrayList<>();
-            for (int i = 0; i <= pages.size(); i += 1) {
-                LemmaTask task = new LemmaTask(pages, lemmaRepo, indexRepo, ruMorphology, engMorphology, pages.get(i), hashMap);
-                task.fork();
-                lemmaTasks.add(task);
-                if (i >= parallelCount && i % parallelCount == 0) {
-                    //Collections.reverse(lemmaTasks);
-                    lemmaTasks.forEach(lemmaTask -> lemmaTask.join());
-                    lemmaTasks.clear();
-                }
-            }
-        } else {
-            pageProcessing(page);
-            if (ForkJoinTask.getPool().getActiveThreadCount() == 1 && pages.get(pages.size() - 1) == page) {
-                ForkJoinTask.getPool().shutdown();
-                System.out.println("Last lemma get");
-            }
-        }*/
         if (page == null) {
             List<LemmaTask> lemmaTasks = new ArrayList<>();
-            List<List<Page>> lists =  ListUtils.partition(pages,parallelCount);
+            List<List<Page>> lists = ListUtils.partition(pages,parallelCount);
             for (List<Page> list : lists) {
                 LemmaTask task = new LemmaTask(list, lemmaRepo, indexRepo, ruMorphology, engMorphology, new Page(), hashMap);
                 task.fork();
                 lemmaTasks.add(task);
             }
-            lemmaTasks.forEach(lemmaTask -> lemmaTask.join());
+            lemmaTasks.forEach(ForkJoinTask::join);
         } else {
             for (Page page : pages) {
                 pageProcessing(page);
                 if (ForkJoinTask.getPool().getActiveThreadCount() == 1 && pages.get(pages.size() - 1) == page) {
                     ForkJoinTask.getPool().shutdown();
-                    System.out.println("Last lemma get");
+                    log.info("Last lemma get");
                 }
             }
         }
     }
 
     private void pageProcessing(Page page) {
-        System.out.println("Поток получения лемм" + Thread.currentThread().getName() + ". Страница = " + page.getPath());
-        System.out.println("Леммы ForkJoinTask.getPool().getActiveThreadCount() " + ForkJoinTask.getPool().getActiveThreadCount());
-        if (page != null && page.getContent().length() > 0) {
+        log.info("Поток получения лемм" + Thread.currentThread().getName() + ". Страница = " + page.getPath());
+        log.info("Леммы ForkJoinTask.getPool().getActiveThreadCount() " + ForkJoinTask.getPool().getActiveThreadCount());
+        if (page != null && !page.getContent().isEmpty()) {
             HashSet<String> hashSet = new HashSet<>();
             String pageText = page.getContent();
-            hashSet.addAll(Arrays.stream(pageText.split("\\p{Blank}+")).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).map(s -> s.trim()).map(s -> s.toLowerCase()).collect(Collectors.toSet()));
+            hashSet.addAll(Arrays.stream(pageText.split("\\p{Blank}+")).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).map(String::trim).map(String::toLowerCase).collect(Collectors.toSet()));
             for (String word : hashSet) {
                 try {
                     List<String> stringList = ruMorphology.getMorphInfo(word);
@@ -108,7 +91,7 @@ public class LemmaTask extends RecursiveAction {
                             lemmaSave(page, s);
                         });
                     } catch (RuntimeException e1) {
-                        System.out.println("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage());
+                        log.info("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage());
                     }
                 }
                 //break;
@@ -118,10 +101,7 @@ public class LemmaTask extends RecursiveAction {
 
     private void lemmaSave(Page page, String s) {
         String lemmaString = s.substring(0, s.indexOf("|"));
-        Lemma lemma = lemmaRepo.findLemmaByName(lemmaString,page.getSite_Entity_id());
-//        if (hashMap.containsKey(lemmaString)) {
-//            lemma = hashMap.get(lemmaString);
-//        }
+        Lemma lemma = lemmaRepo.findLemmaByName(lemmaString, page.getSite_Entity_id());
         if (lemma == null) {
             lemma = new Lemma();
             lemma.setSite_id(page.getSite_Entity_id());

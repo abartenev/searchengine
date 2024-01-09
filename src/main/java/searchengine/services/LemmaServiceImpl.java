@@ -10,6 +10,7 @@ import searchengine.model.Page;
 import searchengine.repositories.indexRepo;
 import searchengine.repositories.lemmaRepo;
 import searchengine.repositories.pageRepo;
+import searchengine.services.interfaces.LemmaService;
 import searchengine.source.LemmaTask;
 
 import java.io.IOException;
@@ -22,7 +23,6 @@ public class LemmaServiceImpl implements LemmaService {
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
     private ForkJoinPool forkJoinPool;
-    private List<Page> pages;
 
     @Autowired
     public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo) {
@@ -37,7 +37,7 @@ public class LemmaServiceImpl implements LemmaService {
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
-        pages = pageRepo.findAll();
+        List<Page> pages = pageRepo.findAll();
         int availableProcessosrs = Runtime.getRuntime().availableProcessors();
         if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
             forkJoinPool = new ForkJoinPool(availableProcessosrs);

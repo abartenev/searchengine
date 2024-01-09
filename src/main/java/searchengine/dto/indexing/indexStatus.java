@@ -9,7 +9,7 @@ public class indexStatus {
     private final boolean result;
     private final String error;
 
-    public indexStatus(boolean result,String errortext) {
+    public indexStatus(boolean result, String errortext) {
         this.result = result;
         this.error = errortext;
     }

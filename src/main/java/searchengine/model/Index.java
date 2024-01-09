@@ -21,6 +21,6 @@ public class Index {
     @ManyToOne
     @JoinColumn
     private Lemma lemma_id; //идентификатор леммы
-    @Column(name = "rrank",precision = 10, scale = 2)
+    @Column(name = "rrank", precision = 10, scale = 2)
     private float rank; //количество леммы для страницы
 }

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import searchengine.model.SiteEntity;
-import searchengine.services.SearchService;
+import searchengine.services.interfaces.SearchService;
 
 import java.util.List;
 

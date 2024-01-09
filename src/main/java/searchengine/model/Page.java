@@ -10,7 +10,7 @@ import javax.persistence.*;
 @Entity
 @Component
 @RequiredArgsConstructor
-@Table(name = "page",indexes = {@Index(name = "path_idx",columnList = "path")})
+@Table(name = "page", indexes = {@Index(name = "path_idx", columnList = "path")})
 @Data
 public class Page {
     @Id

@@ -11,10 +11,10 @@ import searchengine.dto.searchinfo.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.siteRepo;
-import searchengine.services.IndexingService;
-import searchengine.services.LemmaService;
-import searchengine.services.SearchService;
-import searchengine.services.StatisticsService;
+import searchengine.services.interfaces.IndexingService;
+import searchengine.services.interfaces.LemmaService;
+import searchengine.services.interfaces.SearchService;
+import searchengine.services.interfaces.StatisticsService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,11 +35,11 @@ public class ApiController {
     @Autowired
     public ApiController(
             StatisticsService statisticsService
-            ,IndexingService indexingService
-            ,SearchService searchService
-            ,LemmaService lemmaService
-            ,siteRepo repo
-            ) {
+            , IndexingService indexingService
+            , SearchService searchService
+            , LemmaService lemmaService
+            , siteRepo repo
+    ) {
         this.statisticsService = statisticsService;
         this.indexingService = indexingService;
         this.searchingService = searchService;
@@ -108,6 +108,6 @@ public class ApiController {
 
     @GetMapping("/entity")
     public SiteEntity getSiteEntity() {
-        return new SiteEntity("http://url","nameofsite");
+        return new SiteEntity("http://url", "nameofsite");
     }
 }

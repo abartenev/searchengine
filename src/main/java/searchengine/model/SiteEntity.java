@@ -22,7 +22,7 @@ public class SiteEntity {
     private LocalDateTime status_time; //дата и время статуса
     @Column(columnDefinition = "TEXT")
     private String last_error; //текст ошибки индексации
-    @Column(columnDefinition = "MEDIUMTEXT" )
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String url; //адрес главной страницы
     @Column(columnDefinition = "TEXT")
     private String name; //название сайта

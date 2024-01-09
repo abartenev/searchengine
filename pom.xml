@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,21 +13,21 @@
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
-<!--    <repositories>-->
-<!--&lt;!&ndash;        <repository>&ndash;&gt;-->
-<!--&lt;!&ndash;            <id>skillbox-gitlab</id>&ndash;&gt;-->
-<!--&lt;!&ndash;            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>&ndash;&gt;-->
-<!--&lt;!&ndash;        </repository>&ndash;&gt;-->
-<!--        <repository>-->
-<!--            <id>org.apache.lucene.morphology</id>-->
-<!--            <name>local lucene morphology repository</name>-->
-<!--            <url>file:${project.basedir}\lib</url>-->
-<!--        </repository>-->
-<!--        <repository>-->
-<!--            <id>jitpack.io</id>-->
-<!--            <url>https://jitpack.io</url>-->
-<!--        </repository>-->
-<!--    </repositories>-->
+    <!--    <repositories>-->
+    <!--&lt;!&ndash;        <repository>&ndash;&gt;-->
+    <!--&lt;!&ndash;            <id>skillbox-gitlab</id>&ndash;&gt;-->
+    <!--&lt;!&ndash;            <url>https://gitlab.skillbox.ru/api/v4/projects/263574/packages/maven</url>&ndash;&gt;-->
+    <!--&lt;!&ndash;        </repository>&ndash;&gt;-->
+    <!--        <repository>-->
+    <!--            <id>org.apache.lucene.morphology</id>-->
+    <!--            <name>local lucene morphology repository</name>-->
+    <!--            <url>file:${project.basedir}\lib</url>-->
+    <!--        </repository>-->
+    <!--        <repository>-->
+    <!--            <id>jitpack.io</id>-->
+    <!--            <url>https://jitpack.io</url>-->
+    <!--        </repository>-->
+    <!--    </repositories>-->
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -40,10 +40,22 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.thymeleaf/thymeleaf -->
         <dependency>
@@ -67,6 +79,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -86,32 +104,53 @@
             <artifactId>commons-collections4</artifactId>
             <version>4.4</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.22.1</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.22.1</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-log4j2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+
+
+
 
         <!--        <dependency>-->
-<!--            <groupId>org.apache.lucene.morphology</groupId>-->
-<!--            <artifactId>morph</artifactId>-->
-<!--            <version>1.5</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.lucene.analysis</groupId>-->
-<!--            <artifactId>morphology</artifactId>-->
-<!--            <version>1.5</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.lucene.morphology</groupId>-->
-<!--            <artifactId>dictionary-reader</artifactId>-->
-<!--            <version>1.5</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.lucene.morphology</groupId>-->
-<!--            <artifactId>english</artifactId>-->
-<!--            <version>1.5</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.lucene.morphology</groupId>-->
-<!--            <artifactId>russian</artifactId>-->
-<!--            <version>1.5</version>-->
-<!--        </dependency>-->
+        <!--            <groupId>org.apache.lucene.morphology</groupId>-->
+        <!--            <artifactId>morph</artifactId>-->
+        <!--            <version>1.5</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.lucene.analysis</groupId>-->
+        <!--            <artifactId>morphology</artifactId>-->
+        <!--            <version>1.5</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.lucene.morphology</groupId>-->
+        <!--            <artifactId>dictionary-reader</artifactId>-->
+        <!--            <version>1.5</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.lucene.morphology</groupId>-->
+        <!--            <artifactId>english</artifactId>-->
+        <!--            <version>1.5</version>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.lucene.morphology</groupId>-->
+        <!--            <artifactId>russian</artifactId>-->
+        <!--            <version>1.5</version>-->
+        <!--        </dependency>-->
     </dependencies>
 
     <repositories>

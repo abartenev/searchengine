@@ -1,5 +1,6 @@
 package searchengine.services;
 
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
@@ -13,6 +14,8 @@ import searchengine.repositories.indexRepo;
 import searchengine.repositories.lemmaRepo;
 import searchengine.repositories.pageRepo;
 import searchengine.repositories.siteRepo;
+import searchengine.services.interfaces.IndexingService;
+import searchengine.services.interfaces.LemmaService;
 import searchengine.source.ScrapTask;
 
 import java.io.IOException;
@@ -27,6 +30,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 
 @Service
+@Log4j2
 public class IndexingServiceImpl implements IndexingService {
     private final SitesList sites;
     private final siteRepo siteRepo;
@@ -49,19 +53,18 @@ public class IndexingServiceImpl implements IndexingService {
     }
 
     @Override
-    public indexStatus startIndexing(){
+    public indexStatus startIndexing() {
+        log.info("Начинаем индексацию.");
         List<Site> sitesList = sites.getSites();
         List<SiteEntity> entities = siteRepo.findAll();
         sitesList.forEach(site -> {
             SiteEntity entity = siteRepo.findBySiteUrl(site.getUrl());
             if (entity == null) {
-                entities.add(new SiteEntity(site.getUrl(),site.getName()));
+                entities.add(new SiteEntity(site.getUrl(), site.getName()));
             }
         });
 
         entities.forEach(site -> {
-//            SiteEntity siteEntity1 = null;
-//            siteEntity1 = siteRepo.findBySiteUrl(site.getUrl()); //Ищем в базе при повторном запросе на индексацию
             int availableProcessosrs = Runtime.getRuntime().availableProcessors();
             if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
                 forkJoinPool = new ForkJoinPool(availableProcessosrs);
@@ -104,8 +107,9 @@ public class IndexingServiceImpl implements IndexingService {
             url.toURI(); //Если прошли проверку ссылки, идем дальше
             SiteEntity site = siteRepo.findBySiteUrl(page);
             if (site == null) {
-                site.setUrl(page);
-                site.setName(page);
+                site = new SiteEntity();
+                site.setUrl(url.toURI().toString());
+                site.setName(url.getHost());
                 site.setStatus(Status.INDEXING);
                 siteRepo.save(site);
             } else {

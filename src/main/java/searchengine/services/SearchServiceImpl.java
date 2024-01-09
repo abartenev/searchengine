@@ -13,6 +13,7 @@ import searchengine.model.SiteEntity;
 import searchengine.repositories.indexRepo;
 import searchengine.repositories.lemmaRepo;
 import searchengine.repositories.siteRepo;
+import searchengine.services.interfaces.SearchService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,20 +25,18 @@ public class SearchServiceImpl implements SearchService {
     private final siteRepo siteRepo;
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
-    private LuceneMorphology ruMorphology;
-    private LuceneMorphology engMorphology;
     private List<String> wordsList;
 
 
     @Override
     public SearchResponse getSearchResults(String site, String query) {
         try {
-            ruMorphology = new RussianLuceneMorphology();
+            LuceneMorphology ruMorphology = new RussianLuceneMorphology();
             wordsList = ruMorphology.getMorphInfo(query);
             System.out.println(wordsList);
         } catch (IOException | RuntimeException e) {
             try {
-                engMorphology = new EnglishLuceneMorphology();
+                LuceneMorphology engMorphology = new EnglishLuceneMorphology();
                 wordsList = engMorphology.getMorphInfo(query);
                 System.out.println("Eng = " + wordsList);
             } catch (IOException | RuntimeException e1) {
@@ -55,6 +54,11 @@ public class SearchServiceImpl implements SearchService {
         }
         SearchResponse response = new SearchResponse();
         List<SearchResponseData> responseData = new ArrayList<>();
+        setResponse(siteEntities, lemma2find, responseData, response);
+        return response;
+    }
+
+    private void setResponse(List<SiteEntity> siteEntities, String lemma2find, List<SearchResponseData> responseData, SearchResponse response) {
         siteEntities.forEach(siteEntity -> {
             Lemma lemma = lemmaRepo.findLemmaByName(lemma2find, siteEntity);
             List<Index> list = indexRepo.findIndex4Lemma(lemma);
@@ -73,7 +77,6 @@ public class SearchServiceImpl implements SearchService {
             response.setCount(response.getCount() + list.size());
             response.setData(responseData);
         });
-        return response;
     }
 
     @Override
