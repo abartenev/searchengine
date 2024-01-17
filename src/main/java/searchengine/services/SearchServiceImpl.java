@@ -1,6 +1,7 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
@@ -17,7 +18,12 @@ import searchengine.services.interfaces.SearchService;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,26 +31,41 @@ public class SearchServiceImpl implements SearchService {
     private final siteRepo siteRepo;
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
-    private List<String> wordsList;
+    private String lemmaWord;
 
+    public HashSet<String> getAllwords(String pageContent){
+        HashSet<String> hashSet = new HashSet<>();
+        hashSet.addAll(Arrays.stream(pageContent.split("\\p{Blank}+")).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).map(String::trim).map(String::toLowerCase).collect(Collectors.toSet()));
+        return hashSet;
+    }
 
-    @Override
-    public SearchResponse getSearchResults(String site, String query) {
+    public String getLemmaWord(String query) {
         try {
             LuceneMorphology ruMorphology = new RussianLuceneMorphology();
-            wordsList = ruMorphology.getMorphInfo(query);
-            System.out.println(wordsList);
+            List<String> res = ruMorphology.getMorphInfo(query);
+            System.out.println(res.get(0));
+            return res.get(0).substring(0, res.get(0).indexOf("|"));
         } catch (IOException | RuntimeException e) {
             try {
                 LuceneMorphology engMorphology = new EnglishLuceneMorphology();
-                wordsList = engMorphology.getMorphInfo(query);
-                System.out.println("Eng = " + wordsList);
+                List<String> res = engMorphology.getMorphInfo(query);
+                System.out.println("Eng = " + res.get(0));
+                return res.get(0).substring(0, res.get(0).indexOf("|"));
             } catch (IOException | RuntimeException e1) {
                 System.out.println("2 Ошибка при обработке слова " + query + " " + e.getLocalizedMessage());
             }
         }
-        String word2find = wordsList.get(0);
-        String lemma2find = word2find.substring(0, word2find.indexOf("|"));
+        return null;
+    }
+
+    public boolean isListHasWord(String word2check) {
+        String lemmaWordLocal = getLemmaWord(word2check);
+        return lemmaWordLocal.equals(lemmaWord);
+    }
+
+    @Override
+    public SearchResponse getSearchResults(String site, String query) {
+        lemmaWord = getLemmaWord(query);
         List<SiteEntity> siteEntities = new ArrayList<>();
         if (site.matches("All")) {
             siteEntities = siteRepo.findAll();
@@ -54,7 +75,7 @@ public class SearchServiceImpl implements SearchService {
         }
         SearchResponse response = new SearchResponse();
         List<SearchResponseData> responseData = new ArrayList<>();
-        setResponse(siteEntities, lemma2find, responseData, response);
+        setResponse(siteEntities, lemmaWord, responseData, response);
         return response;
     }
 
@@ -69,13 +90,42 @@ public class SearchServiceImpl implements SearchService {
                 data.setSiteName(index.getPage_id().getSite_Entity_id().getName());
                 data.setUrl(index.getPage_id().getPath());
                 data.setTitle(index.getPage_id().getPath());
-                data.setSnippet(index.getPage_id().getContent());
-                data.setRelevance(Float.toString(index.getRank()));
-                responseData.add(data);
+                ///
+                String str = index.getPage_id().getContent();
+                HashSet<String> allwrd = getAllwords(str);
+                List<String> reverseLemmaList = allwrd.stream().filter(s -> s.substring(0,3).equals(lemma2find.substring(0,3))).filter(this::isListHasWord).toList();
+                // Найти совпадения
+                boolean addresults = false;
+                StringBuilder snippet = new StringBuilder();
+                for (String wordFromLemma : reverseLemmaList){
+                    Pattern pattern = Pattern.compile(wordFromLemma, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
+                    Matcher matcher = pattern.matcher(str.toLowerCase());
+                    // Найти фрагмент текста, в котором находятся совпадения
+                    while (matcher.find()) {
+                        int start = matcher.start();
+                        int end = matcher.end();
+                        try {
+                            String fragment = str.substring(start - 20, end + 20);
+                            String fragment2 = StringUtils.replaceIgnoreCase(fragment,wordFromLemma,"<b>"+wordFromLemma+"</b>");
+                            snippet.append("<p>"+fragment2+"</p>");
+                            addresults = true;
+                        } catch (Exception e) {
+                            System.out.println(e.getLocalizedMessage());
+                        }
+                        // Вывести фрагмент текста
+                        //System.out.println(fragment2);
+                    }
+                    data.setRelevance(Float.toString(index.getRank()));
+                }
+                if (addresults) {
+                    data.setSnippet(snippet.toString());
+                    responseData.add(data);
+                    response.setResult(true);
+                    response.setCount(response.getCount()+1);
+                    response.setData(responseData);
+                }
+                ///
             });
-            response.setResult(true);
-            response.setCount(response.getCount() + list.size());
-            response.setData(responseData);
         });
     }
 
