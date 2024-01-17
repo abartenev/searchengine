@@ -97,27 +97,9 @@ public class SearchServiceImpl implements SearchService {
                 // Найти совпадения
                 boolean addresults = false;
                 StringBuilder snippet = new StringBuilder();
-                for (String wordFromLemma : reverseLemmaList){
-                    Pattern pattern = Pattern.compile(wordFromLemma, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
-                    Matcher matcher = pattern.matcher(str.toLowerCase());
-                    // Найти фрагмент текста, в котором находятся совпадения
-                    while (matcher.find()) {
-                        int start = matcher.start();
-                        int end = matcher.end();
-                        try {
-                            String fragment = str.substring(start - 20, end + 20);
-                            String fragment2 = StringUtils.replaceIgnoreCase(fragment,wordFromLemma,"<b>"+wordFromLemma+"</b>");
-                            snippet.append("<p>"+fragment2+"</p>");
-                            addresults = true;
-                        } catch (Exception e) {
-                            System.out.println(e.getLocalizedMessage());
-                        }
-                        // Вывести фрагмент текста
-                        //System.out.println(fragment2);
-                    }
-                    data.setRelevance(Float.toString(index.getRank()));
-                }
+                addresults = createSnippet(reverseLemmaList, str, snippet, addresults);
                 if (addresults) {
+                    data.setRelevance(Float.toString(index.getRank()));
                     data.setSnippet(snippet.toString());
                     responseData.add(data);
                     response.setResult(true);
@@ -127,6 +109,30 @@ public class SearchServiceImpl implements SearchService {
                 ///
             });
         });
+    }
+
+    private static boolean createSnippet(List<String> reverseLemmaList, String str, StringBuilder snippet, boolean addresults) {
+        for (String wordFromLemma : reverseLemmaList){
+            Pattern pattern = Pattern.compile(wordFromLemma, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
+            Matcher matcher = pattern.matcher(str.toLowerCase());
+            // Найти фрагмент текста, в котором находятся совпадения
+            while (matcher.find()) {
+                int start = matcher.start();
+                int end = matcher.end();
+                try {
+                    String fragment = str.substring(start - 20, end + 20);
+                    String fragment2 = StringUtils.replaceIgnoreCase(fragment,wordFromLemma,"<b>"+wordFromLemma+"</b>");
+                    snippet.append("<p>"+fragment2+"</p>");
+                    addresults = true;
+                } catch (Exception e) {
+                    System.out.println(e.getLocalizedMessage());
+                }
+                // Вывести фрагмент текста
+                //System.out.println(fragment2);
+            }
+
+        }
+        return addresults;
     }
 
     @Override
