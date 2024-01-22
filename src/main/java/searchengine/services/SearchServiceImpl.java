@@ -120,13 +120,17 @@ public class SearchServiceImpl implements SearchService {
                 int start = matcher.start();
                 int end = matcher.end();
                 try {
-                    String fragment = str.substring(start - 20, end + 20);
+                    int maxLengthText = str.length();
+                    int startPos = (start - 75) < 0 ? 0 : (start - 75);
+                    int endPos = (end + 75) > maxLengthText ? maxLengthText : (end + 75);
+                    String fragment = str.substring(startPos, endPos);
                     String fragment2 = StringUtils.replaceIgnoreCase(fragment,wordFromLemma,"<b>"+wordFromLemma+"</b>");
                     snippet.append("<p>"+fragment2+"</p>");
                     addresults = true;
                 } catch (Exception e) {
                     System.out.println(e.getLocalizedMessage());
                 }
+                break;
                 // Вывести фрагмент текста
                 //System.out.println(fragment2);
             }
