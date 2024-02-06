@@ -35,7 +35,13 @@ public class SearchServiceImpl implements SearchService {
 
     public HashSet<String> getAllwords(String pageContent){
         HashSet<String> hashSet = new HashSet<>();
-        hashSet.addAll(Arrays.stream(pageContent.split("\\p{Blank}+")).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).map(String::trim).map(String::toLowerCase).collect(Collectors.toSet()));
+        hashSet.addAll(Arrays
+                .stream(pageContent.split("\\p{Blank}+"))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                .filter(s -> s.length() > 2)
+                .collect(Collectors.toSet()));
         return hashSet;
     }
 

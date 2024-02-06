@@ -78,11 +78,11 @@ public class IndexingServiceImpl implements IndexingService {
                 });
                 ScrapTask scrapTask = new ScrapTask(siteRepo, pageRepo, lemmaRepo, indexRepo, new TreeSet<>(), site, site.getUrl());
                 TreeSet<String> res = forkJoinPool.invoke(scrapTask);
-                try {
-                    lemmaService.savePagesLemma();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+//                try {
+//                    lemmaService.savePagesLemma();
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
             }
         });
 

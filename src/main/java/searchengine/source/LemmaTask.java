@@ -75,7 +75,14 @@ public class LemmaTask extends RecursiveAction {
         if (page != null && !page.getContent().isEmpty()) {
             HashSet<String> hashSet = new HashSet<>();
             String pageText = page.getContent();
-            hashSet.addAll(Arrays.stream(pageText.split("\\p{Blank}+")).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).map(String::trim).map(String::toLowerCase).collect(Collectors.toSet()));
+            hashSet.addAll(
+                    Arrays.stream(pageText.split("\\p{Blank}+"))
+                          .map(String::trim)
+                          .map(String::toLowerCase)
+                          .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                          .filter(s -> s.length() > 2)
+                          .collect(Collectors.toSet())
+                         );
             for (String word : hashSet) {
                 try {
                     List<String> stringList = ruMorphology.getMorphInfo(word);
