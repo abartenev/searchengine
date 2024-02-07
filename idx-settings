@@ -6,3 +6,7 @@ indexing-settings:
       name: Skillbox
     - url: https://www.playback.ru
       name: PlayBack.Ru
+    - url: https://javarush.com
+      name: javarush
+    - url: https://vz.ru
+          name: Взгляд

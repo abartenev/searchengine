@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.ForkJoinPool;
@@ -76,15 +77,18 @@ public class IndexingServiceImpl implements IndexingService {
                     indexRepo.deleteAll(indexList);
                     pageRepo.delete(page);
                 });
-                ScrapTask scrapTask = new ScrapTask(siteRepo, pageRepo, lemmaRepo, indexRepo, new TreeSet<>(), site, site.getUrl());
+                ArrayList<String> listOfUrls = new ArrayList<>();
+                listOfUrls.add(site.getUrl());
+                ScrapTask scrapTask = new ScrapTask(siteRepo, pageRepo, lemmaRepo, indexRepo, site, listOfUrls,new TreeSet<>(),listOfUrls.get(0));
                 TreeSet<String> res = forkJoinPool.invoke(scrapTask);
-//                try {
-//                    lemmaService.savePagesLemma();
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
             }
         });
+
+        try {
+            lemmaService.savePagesLemma();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         return new indexStatus(true, null);
     }
