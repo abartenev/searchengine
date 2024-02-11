@@ -3,6 +3,7 @@ package searchengine.model;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.util.Objects;
 
 @Entity
 @Table(name = "Lemma")
@@ -20,4 +21,17 @@ public class Lemma {
      * Максимальное не может превышать общее количество на сайте.
      */
     private Integer frequency;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Lemma lemma1 = (Lemma) o;
+        return Objects.equals(site_id, lemma1.site_id) && Objects.equals(lemma, lemma1.lemma);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(site_id, lemma);
+    }
 }
