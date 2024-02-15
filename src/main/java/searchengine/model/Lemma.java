@@ -22,6 +22,14 @@ public class Lemma {
      */
     private Integer frequency;
 
+    public Lemma() {
+    }
+
+    public Lemma(String lemma, SiteEntity site_id) {
+        this.site_id = site_id;
+        this.lemma = lemma;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
