@@ -7,6 +7,8 @@ import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Index;
 import searchengine.model.Lemma;
@@ -24,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Log4j2
@@ -34,6 +37,7 @@ public class LemmaServiceImpl implements LemmaService {
     private final indexRepo indexRepo;
     private final siteRepo siteRepo;
     private ForkJoinPool forkJoinPool;
+    private Map<String, Long> wordLemmasCount;
 
     @Autowired
     public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo, siteRepo siteRepo) {
@@ -43,9 +47,38 @@ public class LemmaServiceImpl implements LemmaService {
         this.siteRepo = siteRepo;
     }
 
+    public void fillLemmaDict(String s, Page p, Long lemmaPageCount) {
+        Lemma lemma = lemmaRepo.findLemmaByName(s, p.getSite_Entity_id());
+        if (lemma == null) {
+            lemma = new Lemma();
+            lemma.setSite_id(p.getSite_Entity_id());
+            lemma.setFrequency(lemmaPageCount.intValue());
+            lemma.setLemma(s);
+            lemmaRepo.save(lemma);
+        } else {
+            lemma.setFrequency(lemma.getFrequency() + lemmaPageCount.intValue());
+            lemmaRepo.save(lemma);
+        }
+
+        Index index = indexRepo.findIndex4LemmaNPage(lemma, p);
+        if (index == null) {
+            index = new Index();
+            index.setPage_id(p);
+            index.setLemma_id(lemma);
+            index.setRank(lemmaPageCount.intValue());
+            indexRepo.save(index);
+        } else {
+            index.setRank(index.getRank() + lemmaPageCount.intValue());
+            indexRepo.save(index);
+            lemma.setFrequency(lemma.getFrequency() + lemmaPageCount.intValue());
+            lemmaRepo.save(lemma);
+        }
+
+    }
+
     @Override
     public void savePagesLemma() throws IOException {
-        ConcurrentHashMap<Page,ConcurrentHashMap<String,Integer>> hashMap0 = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Integer,ConcurrentHashMap<String,Integer>> hashMap0 = new ConcurrentHashMap<>();
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
@@ -72,93 +105,45 @@ public class LemmaServiceImpl implements LemmaService {
                         protected void compute() {
                             list.forEach(page -> {
                                 if (page != null && !page.getContent().isEmpty()) {
-                                    HashSet<String> hashSet = new HashSet<>();
-                                    //Hashtable<String, Integer> lemmasOnPage = new Hashtable<>();
                                     String pageText = page.getContent();
-                                    hashSet.addAll(Arrays.stream(pageText.split("\\p{Blank}+")).map(String::trim).map(String::toLowerCase).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).collect(Collectors.toSet()));
-                                    System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() + "list.size = " + list.size() + " hashSet.size = " + hashSet.size() + "Curr list index = " + lists.indexOf(list));
-                                    for (String word : hashSet) {
-                                        try {
-                                            List<String> stringList = ruMorphology.getMorphInfo(word);
-                                            //System.out.println(stringList);
-                                            stringList.forEach(s -> {
-                                                String lemmaString = s.substring(0, s.indexOf("|"));
-                                                ConcurrentHashMap<String,Integer> map = new ConcurrentHashMap<>();
-                                                map.put(lemmaString,1);
-                                                hashMap0.putIfAbsent(page,map);
-                                                hashMap0.get(page).computeIfPresent(lemmaString,(s1, counter) -> counter++);
-                                                //fillLemmaDict(s, page);
-                                            });
-                                        } catch (RuntimeException e) {
-                                            try {
-                                                List<String> engStringList = engMorphology.getMorphInfo(word);
-                                                //System.out.println(engStringList);
-                                                engStringList.forEach(s -> {
-                                                    String lemmaString = s.substring(0, s.indexOf("|"));
-                                                    ConcurrentHashMap<String,Integer> map = new ConcurrentHashMap<>();
-                                                    map.put(lemmaString,1);
-                                                    hashMap0.putIfAbsent(page,map);
-                                                    hashMap0.get(page).computeIfPresent(lemmaString,(s1, counter) -> counter++);
-                                                    //fillLemmaDict(s, page);
-                                                });
-                                            } catch (RuntimeException e1) {
-                                                log.info("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage() + e.getStackTrace());
-                                            }
-                                        }
-                                    }
-                                    //lemmaSave(page, lemmasOnPage);
+                                    wordLemmasCount = Arrays.stream(pageText
+                                                    .split("\\p{Blank}+"))
+                                            .map(String::trim).map(String::toLowerCase)
+                                            .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                                            .filter(s -> s.length() > 2)
+                                            .map(word -> lemmaWord(word))
+                                            .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+                                    System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() + "list.size = " + list.size() + lists.indexOf(list));
                                 }
                             });
-                        }
-
-                        @Transactional
-                        private void fillLemmaDict(String s, Page p) {
-                            String lemmaString = s.substring(0, s.indexOf("|"));
-                            Lemma lemma = lemmaRepo.findLemmaByName(lemmaString, p.getSite_Entity_id());
-                            if (lemma == null) {
-                                lemma = new Lemma();
-                                lemma.setSite_id(p.getSite_Entity_id());
-                                lemma.setFrequency(1);
-                                lemma.setLemma(lemmaString);
-                                lemmaRepo.save(lemma);
-                            } else {
-                                lemma.setFrequency(lemma.getFrequency() + 1);
-                                lemmaRepo.save(lemma);
-                            }
-
-                            Index index = indexRepo.findIndex4LemmaNPage(lemma, p);
-                            if (index == null) {
-                                index = new Index();
-                                index.setPage_id(p);
-                                index.setLemma_id(lemma);
-                                index.setRank(1);
-                                indexRepo.save(index);
-                            } else {
-                                index.setRank(index.getRank() + 1);
-                                indexRepo.save(index);
-                                lemma.setFrequency(lemma.getFrequency() + 1);
-                                lemmaRepo.save(lemma);
-                            }
-
                         }
                     };
                     action1.fork();
                     lemmaTasks.add(action1);
                 }
                 lemmaTasks.forEach(ForkJoinTask::join);
-//                if (ForkJoinTask.getPool().getActiveThreadCount() == 1 /*&& lists.get(lists.size() - 1) == list*/
-//                    ForkJoinTask.getPool().getRunningThreadCount()) {
-//                    ForkJoinTask.getPool().shutdown();
-//                    System.out.println("Last lemma get");
-//                }
-                //System.out.println("Thread=" + Thread.currentThread().getName() +"; getRunningThreadCount() = " + ForkJoinTask.getPool().getRunningThreadCount() + " sizelist=" + lists.size() + "indexList="+lists.);
+                wordLemmasCount.forEach((lemma,lemmaPageCount) -> {
+                    fillLemmaDict(lemma,page,lemmaPageCount);
+                });
+            }
+
+            private String lemmaWord(String word) {
+                try {
+                    List<String> stringList = ruMorphology.getMorphInfo(word);
+                    return stringList.get(0).substring(0, stringList.get(0).indexOf("|"));
+                } catch (RuntimeException e) {
+                    try {
+                        List<String> engStringList = engMorphology.getMorphInfo(word);
+                        return engStringList.get(0).substring(0, engStringList.get(0).indexOf("|"));
+                    } catch (RuntimeException e1) {
+                        log.info("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage() + e.getStackTrace());
+                    }
+                }
+                return null;
             }
         };
 
         ForkJoinPool.commonPool().invoke(action);
         System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() +"; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
-
-
-////////////////////////////
     }
 }

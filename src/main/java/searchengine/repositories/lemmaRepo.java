@@ -21,5 +21,4 @@ public interface lemmaRepo extends JpaRepository<Lemma, Integer> {
 
     @Query("SELECT t FROM Lemma t WHERE t.site_id = :site")
     List<Lemma> findBySiteUrl(@Param("site") SiteEntity site);
-
 }
