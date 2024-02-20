@@ -15,7 +15,7 @@ import java.util.List;
 @Repository
 public interface lemmaRepo extends JpaRepository<Lemma, Integer> {
 
-//    @Transactional(propagation = Propagation.REQUIRED,isolation = Isolation.SERIALIZABLE,readOnly = true)
+    //    @Transactional(propagation = Propagation.REQUIRED,isolation = Isolation.SERIALIZABLE,readOnly = true)
     @Query("SELECT min(t) FROM Lemma t WHERE t.lemma = :lemmaName and t.site_id = :site")
     Lemma findLemmaByName(@Param("lemmaName") String lemmaName, @Param("site") SiteEntity site);
 

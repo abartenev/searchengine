@@ -7,17 +7,13 @@ import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import searchengine.model.Index;
-import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.indexRepo;
 import searchengine.repositories.lemmaRepo;
 import searchengine.repositories.pageRepo;
 import searchengine.repositories.siteRepo;
+import searchengine.services.interfaces.LemmaDictService;
 import searchengine.services.interfaces.LemmaService;
 
 import java.io.IOException;
@@ -38,47 +34,22 @@ public class LemmaServiceImpl implements LemmaService {
     private final siteRepo siteRepo;
     private ForkJoinPool forkJoinPool;
     private Map<String, Long> wordLemmasCount;
+    private volatile ConcurrentHashMap<Integer, Map<String, Long>> wordLemmasCount4page;
+    private final LemmaDictService lemmaDictService;
 
     @Autowired
-    public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo, siteRepo siteRepo) {
+    public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo, siteRepo siteRepo, LemmaDictService lemmaDictService) {
         this.lemmaRepo = lemmaRepo;
         this.pageRepo = pageRepo;
         this.indexRepo = indexRepo;
         this.siteRepo = siteRepo;
-    }
-
-    public void fillLemmaDict(String s, Page p, Long lemmaPageCount) {
-        Lemma lemma = lemmaRepo.findLemmaByName(s, p.getSite_Entity_id());
-        if (lemma == null) {
-            lemma = new Lemma();
-            lemma.setSite_id(p.getSite_Entity_id());
-            lemma.setFrequency(lemmaPageCount.intValue());
-            lemma.setLemma(s);
-            lemmaRepo.save(lemma);
-        } else {
-            lemma.setFrequency(lemma.getFrequency() + lemmaPageCount.intValue());
-            lemmaRepo.save(lemma);
-        }
-
-        Index index = indexRepo.findIndex4LemmaNPage(lemma, p);
-        if (index == null) {
-            index = new Index();
-            index.setPage_id(p);
-            index.setLemma_id(lemma);
-            index.setRank(lemmaPageCount.intValue());
-            indexRepo.save(index);
-        } else {
-            index.setRank(index.getRank() + lemmaPageCount.intValue());
-            indexRepo.save(index);
-            lemma.setFrequency(lemma.getFrequency() + lemmaPageCount.intValue());
-            lemmaRepo.save(lemma);
-        }
-
+        this.lemmaDictService = lemmaDictService;
+        this.wordLemmasCount4page = new ConcurrentHashMap<>();
     }
 
     @Override
     public void savePagesLemma() throws IOException {
-        ConcurrentHashMap<Integer,ConcurrentHashMap<String,Integer>> hashMap0 = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Integer, ConcurrentHashMap<String, Integer>> hashMap0 = new ConcurrentHashMap<>();
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
@@ -106,14 +77,19 @@ public class LemmaServiceImpl implements LemmaService {
                             list.forEach(page -> {
                                 if (page != null && !page.getContent().isEmpty()) {
                                     String pageText = page.getContent();
-                                    wordLemmasCount = Arrays.stream(pageText
-                                                    .split("\\p{Blank}+"))
-                                            .map(String::trim).map(String::toLowerCase)
-                                            .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
-                                            .filter(s -> s.length() > 2)
-                                            .map(word -> lemmaWord(word))
-                                            .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                                    System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() + "list.size = " + list.size() + lists.indexOf(list));
+                                    try {
+                                        wordLemmasCount = Arrays.stream(pageText
+                                                        .split("\\p{Blank}+"))
+                                                .map(String::trim).map(String::toLowerCase)
+                                                .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                                                .filter(s -> s.length() > 2)
+                                                .map(word -> lemmaWord(word))
+                                                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+                                        System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() + "list.size = " + list.size() + lists.indexOf(list));
+                                    } catch (RuntimeException e) {
+                                        log.error(e.getLocalizedMessage());
+                                    }
+                                    wordLemmasCount4page.put(page.getId(), wordLemmasCount);
                                 }
                             });
                         }
@@ -122,9 +98,6 @@ public class LemmaServiceImpl implements LemmaService {
                     lemmaTasks.add(action1);
                 }
                 lemmaTasks.forEach(ForkJoinTask::join);
-                wordLemmasCount.forEach((lemma,lemmaPageCount) -> {
-                    fillLemmaDict(lemma,page,lemmaPageCount);
-                });
             }
 
             private String lemmaWord(String word) {
@@ -144,6 +117,40 @@ public class LemmaServiceImpl implements LemmaService {
         };
 
         ForkJoinPool.commonPool().invoke(action);
-        System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() +"; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
+        System.out.println("1: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
+        //wordLemmasCount4page.forEach((integer, stringLongMap) -> stringLongMap.forEach((s, aLong) -> lemmaDictService.fillLemmaDict(s,integer,aLong)));
+        RecursiveAction save2db = new RecursiveAction() {
+
+            private volatile List<List<ConcurrentHashMap.Entry<Integer, Map<String, Long>>>> lists;
+
+            @Override
+            protected void compute() {
+                List<RecursiveAction> lemmaTasks = new ArrayList<>();
+                int parallelCount = ForkJoinTask.getPool().getParallelism() - 2;
+                lists = ListUtils.partition(wordLemmasCount4page.entrySet().stream().toList(), parallelCount);
+                lists.forEach(entries -> {
+                    RecursiveAction action1 = new RecursiveAction() {
+                        @Override
+                        protected void compute() {
+                            System.out.println("1.2: Thread name: " + Thread.currentThread().getName() + ", entries size = " + entries.size());
+                            entries.forEach(integerMapEntry -> integerMapEntry.getValue().forEach((s, aLong) ->
+                                    {
+                                        try {
+                                            lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
+                                        } catch (Exception e) {
+                                            System.out.println(e.getLocalizedMessage());
+                                        }
+                                    }
+                            ));
+                        }
+                    };
+                    action1.fork();
+                    lemmaTasks.add(action1);
+                });
+                ForkJoinTask.invokeAll(lemmaTasks);
+            }
+        };
+        ForkJoinPool.commonPool().invoke(save2db);
+        System.out.println("2: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
     }
 }

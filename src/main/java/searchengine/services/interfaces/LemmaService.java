@@ -11,6 +11,4 @@ import java.io.IOException;
 public interface LemmaService {
     void savePagesLemma() throws IOException;
 
-    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.SERIALIZABLE)
-    void fillLemmaDict(String s, Page p, Long lemmaPageCount);
 }
