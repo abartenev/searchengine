@@ -32,6 +32,7 @@ public class SearchServiceImpl implements SearchService {
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
     private String lemmaWord;
+    private List<Index> indexList;
 
     public HashSet<String> getAllwords(String pageContent){
         HashSet<String> hashSet = new HashSet<>();
@@ -41,6 +42,7 @@ public class SearchServiceImpl implements SearchService {
                 .map(String::toLowerCase)
                 .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
                 .filter(s -> s.length() > 2)
+                .map(this::getLemmaWord)
                 .collect(Collectors.toSet()));
         return hashSet;
     }
@@ -70,19 +72,36 @@ public class SearchServiceImpl implements SearchService {
     }
 
     @Override
-    public SearchResponse getSearchResults(String site, String query) {
-        lemmaWord = getLemmaWord(query);
-        List<SiteEntity> siteEntities = new ArrayList<>();
-        if (site.matches("All")) {
-            siteEntities = siteRepo.findAll();
-        } else {
-            SiteEntity siteEntity = siteRepo.findBySiteUrl(site);
-            siteEntities.add(siteEntity);
-        }
+    public SearchResponse getSearchResults(String site, String query, Integer limit) {
+        HashSet<String> hashSet = getAllwords(query);
+        indexList = null;
+        hashSet.forEach(lemmaWord -> {
+            if (indexList == null || indexList.isEmpty()) {
+                Lemma lemma = lemmaRepo.findLemmaByName(lemmaWord,siteRepo.findBySiteUrl(site));
+                indexList = indexRepo.findIndex4Lemma(lemma);
+                indexList.sort((o1, o2) -> o1.getRank() < o2.getRank() ? 1 : 0);
+            } else {
+                Lemma lemma = lemmaRepo.findLemmaByName(lemmaWord,siteRepo.findBySiteUrl(site));
+                List<Index> indexList1 = indexRepo.findIndex4Lemma(lemma);
+                indexList.retainAll(indexList1);
+                System.out.println(indexList);
+            }
+        });
         SearchResponse response = new SearchResponse();
-        List<SearchResponseData> responseData = new ArrayList<>();
-        setResponse(siteEntities, lemmaWord, responseData, response);
         return response;
+
+//        lemmaWord = getLemmaWord(query);
+//        List<SiteEntity> siteEntities = new ArrayList<>();
+//        if (site.matches("All")) {
+//            siteEntities = siteRepo.findAll();
+//        } else {
+//            SiteEntity siteEntity = siteRepo.findBySiteUrl(site);
+//            siteEntities.add(siteEntity);
+//        }
+//        SearchResponse response = new SearchResponse();
+//        List<SearchResponseData> responseData = new ArrayList<>();
+//        setResponse(siteEntities, lemmaWord, responseData, response);
+//        return response;
     }
 
     private void setResponse(List<SiteEntity> siteEntities, String lemma2find, List<SearchResponseData> responseData, SearchResponse response) {
@@ -90,6 +109,7 @@ public class SearchServiceImpl implements SearchService {
             Lemma lemma = lemmaRepo.findLemmaByName(lemma2find, siteEntity);
             List<Index> list = indexRepo.findIndex4Lemma(lemma);
             list.sort((o1, o2) -> o1.getRank() > o2.getRank() ? 1 : 0);
+
             list.forEach(index -> {
                 SearchResponseData data = new SearchResponseData();
                 data.setSite(index.getPage_id().getSite_Entity_id().getUrl());

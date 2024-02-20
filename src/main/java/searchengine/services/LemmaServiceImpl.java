@@ -6,6 +6,7 @@ import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
@@ -34,7 +35,7 @@ public class LemmaServiceImpl implements LemmaService {
     private final siteRepo siteRepo;
     private ForkJoinPool forkJoinPool;
     private Map<String, Long> wordLemmasCount;
-    private volatile ConcurrentHashMap<Integer, Map<String, Long>> wordLemmasCount4page;
+    private volatile ConcurrentHashMap<Page, Map<String, Long>> wordLemmasCount4page;
     private final LemmaDictService lemmaDictService;
 
     @Autowired
@@ -89,7 +90,7 @@ public class LemmaServiceImpl implements LemmaService {
                                     } catch (RuntimeException e) {
                                         log.error(e.getLocalizedMessage());
                                     }
-                                    wordLemmasCount4page.put(page.getId(), wordLemmasCount);
+                                    wordLemmasCount4page.put(page, wordLemmasCount);
                                 }
                             });
                         }
@@ -118,15 +119,17 @@ public class LemmaServiceImpl implements LemmaService {
 
         ForkJoinPool.commonPool().invoke(action);
         System.out.println("1: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
+
         //wordLemmasCount4page.forEach((integer, stringLongMap) -> stringLongMap.forEach((s, aLong) -> lemmaDictService.fillLemmaDict(s,integer,aLong)));
+        //wordLemmasCount4page.entrySet().parallelStream().forEach(pageMapEntry -> pageMapEntry.getValue().entrySet().parallelStream().forEach(stringLongEntry -> lemmaDictService.fillLemmaDict(stringLongEntry.getKey(),pageMapEntry.getKey(),stringLongEntry.getValue())));
         RecursiveAction save2db = new RecursiveAction() {
 
-            private volatile List<List<ConcurrentHashMap.Entry<Integer, Map<String, Long>>>> lists;
+            private volatile List<List<ConcurrentHashMap.Entry<Page, Map<String, Long>>>> lists;
 
             @Override
             protected void compute() {
                 List<RecursiveAction> lemmaTasks = new ArrayList<>();
-                int parallelCount = ForkJoinTask.getPool().getParallelism() - 2;
+                int parallelCount = ForkJoinTask.getPool().getParallelism();
                 lists = ListUtils.partition(wordLemmasCount4page.entrySet().stream().toList(), parallelCount);
                 lists.forEach(entries -> {
                     RecursiveAction action1 = new RecursiveAction() {
@@ -136,7 +139,9 @@ public class LemmaServiceImpl implements LemmaService {
                             entries.forEach(integerMapEntry -> integerMapEntry.getValue().forEach((s, aLong) ->
                                     {
                                         try {
-                                            lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
+                                            synchronized (lemmaDictService) {
+                                                lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
+                                            }
                                         } catch (Exception e) {
                                             System.out.println(e.getLocalizedMessage());
                                         }

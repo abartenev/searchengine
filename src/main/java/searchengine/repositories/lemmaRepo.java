@@ -16,8 +16,11 @@ import java.util.List;
 public interface lemmaRepo extends JpaRepository<Lemma, Integer> {
 
     //    @Transactional(propagation = Propagation.REQUIRED,isolation = Isolation.SERIALIZABLE,readOnly = true)
-    @Query("SELECT min(t) FROM Lemma t WHERE t.lemma = :lemmaName and t.site_id = :site")
+    @Query("SELECT t FROM Lemma t WHERE t.lemma = :lemmaName and t.site_id = :site")
     Lemma findLemmaByName(@Param("lemmaName") String lemmaName, @Param("site") SiteEntity site);
+
+    @Query("SELECT t FROM Lemma t WHERE t.lemma = :lemmaName and t.site_id = :site")
+    List<Lemma> getAllByLemmaAndSite_id(@Param("lemmaName") String lemmaName, @Param("site") SiteEntity site);
 
     @Query("SELECT t FROM Lemma t WHERE t.site_id = :site")
     List<Lemma> findBySiteUrl(@Param("site") SiteEntity site);
