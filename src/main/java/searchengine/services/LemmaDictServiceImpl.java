@@ -1,10 +1,7 @@
 package searchengine.services;
 
-import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +14,6 @@ import searchengine.repositories.pageRepo;
 import searchengine.services.interfaces.LemmaDictService;
 
 import javax.persistence.LockModeType;
-import java.util.Optional;
 
 @Service
 public class LemmaDictServiceImpl implements LemmaDictService {
@@ -39,7 +35,7 @@ public class LemmaDictServiceImpl implements LemmaDictService {
     public void fillLemmaDict(String s, Page page, Long lemmaPageCount) {
             synchronized (lemmaRepo) {
                 synchronized (indexRepo) {
-                        Lemma lemma = lemmaRepo.findLemmaByName(s, page.getSite_Entity_id());
+                        Lemma lemma = lemmaRepo.findLemmaByNameAndSite(s, page.getSite_Entity_id());
                         if (lemma == null) {
                             lemma = new Lemma();
                             lemma.setSite_id(page.getSite_Entity_id());

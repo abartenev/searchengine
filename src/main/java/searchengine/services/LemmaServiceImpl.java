@@ -6,7 +6,6 @@ import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
@@ -35,7 +34,7 @@ public class LemmaServiceImpl implements LemmaService {
     private final siteRepo siteRepo;
     private ForkJoinPool forkJoinPool;
     private Map<String, Long> wordLemmasCount;
-    private volatile ConcurrentHashMap<Page, Map<String, Long>> wordLemmasCount4page;
+    private final ConcurrentHashMap<Page, Map<String, Long>> wordLemmasCount4page;
     private final LemmaDictService lemmaDictService;
 
     @Autowired

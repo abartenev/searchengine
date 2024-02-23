@@ -10,7 +10,6 @@ import searchengine.repositories.indexRepo;
 import searchengine.repositories.lemmaRepo;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
 import java.util.stream.Collectors;
@@ -114,7 +113,7 @@ public class LemmaTask extends RecursiveAction {
 
     public void addLemmaAndIndex(Page page, String s, Integer pageCounter) {
         //synchronized (lemmaRepo) {
-            Lemma lemma = lemmaRepo.findLemmaByName(s, page.getSite_Entity_id());
+            Lemma lemma = lemmaRepo.findLemmaByNameAndSite(s, page.getSite_Entity_id());
             if (lemma == null) {
                 lemma = new Lemma();
                 lemma.setSite_id(page.getSite_Entity_id());
