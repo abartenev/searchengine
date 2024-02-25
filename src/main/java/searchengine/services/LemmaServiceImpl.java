@@ -52,8 +52,7 @@ public class LemmaServiceImpl implements LemmaService {
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
-//        List<Page> pages = pageRepo.findAll();
-        List<Page> pages = pageRepo.findBySiteUrl(siteRepo.findById(15017630).get());
+        List<Page> pages = pageRepo.findAll();
         int availableProcessosrs = Runtime.getRuntime().availableProcessors();
         if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
             forkJoinPool = new ForkJoinPool(availableProcessosrs);
