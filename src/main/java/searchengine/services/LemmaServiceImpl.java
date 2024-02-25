@@ -49,22 +49,17 @@ public class LemmaServiceImpl implements LemmaService {
 
     @Override
     public void savePagesLemma() throws IOException {
-        ConcurrentHashMap<Integer, ConcurrentHashMap<String, Integer>> hashMap0 = new ConcurrentHashMap<>();
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
-        //List<Page> pages = pageRepo.findAll();
-        Optional<SiteEntity> site = siteRepo.findById(1);
-        List<Page> pages = pageRepo.findBySiteUrl(site.get());
+//        List<Page> pages = pageRepo.findAll();
+        List<Page> pages = pageRepo.findBySiteUrl(siteRepo.findById(15017630).get());
         int availableProcessosrs = Runtime.getRuntime().availableProcessors();
         if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
             forkJoinPool = new ForkJoinPool(availableProcessosrs);
         }
-        //LemmaTask lemmaTask = new LemmaTask(pages, lemmaRepo, indexRepo, ruMorphology, engMorphology);
-        //forkJoinPool.invoke(lemmaTask);
         RecursiveAction action = new RecursiveAction() {
             private volatile List<List<Page>> lists;
-
             @Override
             protected void compute() {
                 int parallelCount = ForkJoinTask.getPool().getParallelism();
@@ -78,16 +73,18 @@ public class LemmaServiceImpl implements LemmaService {
                                 if (page != null && !page.getContent().isEmpty()) {
                                     String pageText = page.getContent();
                                     try {
-                                        wordLemmasCount = Arrays.stream(pageText
-                                                        .split("\\p{Blank}+"))
+                                        wordLemmasCount = Arrays.asList(pageText
+                                                .split("\\p{Blank}+")).parallelStream()
                                                 .map(String::trim).map(String::toLowerCase)
                                                 .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
                                                 .filter(s -> s.length() > 2)
+                                                .filter(s -> lemmaWord(s) != null)
                                                 .map(word -> lemmaWord(word))
                                                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
                                         System.out.println("Thread.currentThread().getName()" + Thread.currentThread().getName() + "list.size = " + list.size() + lists.indexOf(list));
                                     } catch (RuntimeException e) {
-                                        log.error(e.getLocalizedMessage());
+                                        log.error(e.getLocalizedMessage() + " stack trace = " +
+                                                Arrays.asList(e.getStackTrace()).parallelStream().skip(0).map(StackTraceElement::toString).reduce((s1, s2) -> s1 + "\n" + s2).get());
                                     }
                                     wordLemmasCount4page.put(page, wordLemmasCount);
                                 }
@@ -119,17 +116,13 @@ public class LemmaServiceImpl implements LemmaService {
         ForkJoinPool.commonPool().invoke(action);
         System.out.println("1: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
 
-        //wordLemmasCount4page.forEach((integer, stringLongMap) -> stringLongMap.forEach((s, aLong) -> lemmaDictService.fillLemmaDict(s,integer,aLong)));
-        //wordLemmasCount4page.entrySet().parallelStream().forEach(pageMapEntry -> pageMapEntry.getValue().entrySet().parallelStream().forEach(stringLongEntry -> lemmaDictService.fillLemmaDict(stringLongEntry.getKey(),pageMapEntry.getKey(),stringLongEntry.getValue())));
         RecursiveAction save2db = new RecursiveAction() {
-
             private volatile List<List<ConcurrentHashMap.Entry<Page, Map<String, Long>>>> lists;
-
             @Override
             protected void compute() {
                 List<RecursiveAction> lemmaTasks = new ArrayList<>();
                 int parallelCount = ForkJoinTask.getPool().getParallelism();
-                lists = ListUtils.partition(wordLemmasCount4page.entrySet().stream().toList(), parallelCount);
+                lists = ListUtils.partition(wordLemmasCount4page.entrySet().parallelStream().toList(), parallelCount);
                 lists.forEach(entries -> {
                     RecursiveAction action1 = new RecursiveAction() {
                         @Override

@@ -74,14 +74,14 @@ public class LemmaTask extends RecursiveAction {
     }
 
     public void pageProcessing(Page page) {
-        //log.info("Поток получения лемм" + Thread.currentThread().getName() + ". Страница = " + page.getPath());
-        //log.info("Леммы ForkJoinTask.getPool().getActiveThreadCount() " + ForkJoinTask.getPool().getActiveThreadCount());
 
         if (page != null && !page.getContent().isEmpty()) {
             HashSet<String> hashSet = new HashSet<>();
             Hashtable<String, Integer> lemmasOnPage = new Hashtable<>();
             String pageText = page.getContent();
-            hashSet.addAll(Arrays.stream(pageText.split("\\p{Blank}+")).map(String::trim).map(String::toLowerCase).filter(s -> s.matches("[a-zA-Zа-яА-Я]+")).filter(s -> s.length() > 2).collect(Collectors.toSet()));
+            hashSet.addAll(Arrays.asList(pageText.split("\\p{Blank}+")).parallelStream().map(String::trim).map(String::toLowerCase)
+                            .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                            .filter(s -> s.length() > 2).collect(Collectors.toSet()));
             for (String word : hashSet) {
                 try {
                     List<String> stringList = ruMorphology.getMorphInfo(word);

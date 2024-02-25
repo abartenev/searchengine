@@ -88,11 +88,7 @@ public class ApiController {
     @GetMapping("/site/{ID}")
     public ResponseEntity<SiteEntity> getTaskById(@PathVariable int ID) {
         Optional<SiteEntity> todoList = siteRepo.findById(ID);
-        if (todoList.isPresent()) {
-            return new ResponseEntity(todoList.get(), HttpStatus.OK);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return todoList.map(siteEntity -> new ResponseEntity(siteEntity, HttpStatus.OK)).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/delete/{ID}")

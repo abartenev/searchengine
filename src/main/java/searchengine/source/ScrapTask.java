@@ -63,7 +63,7 @@ public class ScrapTask extends RecursiveTask<TreeSet<String>> {
                             .collect(Collectors.toSet());
                     keys.addAll(tempSet);
                     List<ScrapTask> scrapTasks = new ArrayList<>();
-                    List<List<String>> list = ListUtils.partition(tempSet.stream().toList(), parallelCount);
+                    List<List<String>> list = ListUtils.partition(tempSet.parallelStream().toList(), parallelCount);
                     list.forEach(strings -> {
                         ScrapTask task = new ScrapTask(siteRepo, pageRepo, lemmaRepo, indexRepo, siteEntity, strings, keys, firstUrl);
                         task.fork();

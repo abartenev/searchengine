@@ -20,13 +20,11 @@ public class LemmaDictServiceImpl implements LemmaDictService {
 
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
-    private final pageRepo pageRepo;
 
     @Autowired
     public LemmaDictServiceImpl(lemmaRepo lemmaRepo, indexRepo indexRepo, pageRepo pageRepo) {
         this.lemmaRepo = lemmaRepo;
         this.indexRepo = indexRepo;
-        this.pageRepo = pageRepo;
     }
 
     @Override
@@ -48,7 +46,6 @@ public class LemmaDictServiceImpl implements LemmaDictService {
                             lemmaRepo.save(lemma);
                             System.out.println("1.4: Thread name: " + Thread.currentThread().getName());
                         }
-
                         Index index = indexRepo.findIndex4LemmaNPage(lemma, page);
                         if (index == null) {
                             index = new Index();

@@ -18,7 +18,6 @@ import searchengine.services.interfaces.IndexingService;
 import searchengine.services.interfaces.LemmaService;
 import searchengine.source.ScrapTask;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -29,6 +28,7 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -65,7 +65,9 @@ public class IndexingServiceImpl implements IndexingService {
             }
         });
 
-        entities.forEach(site -> {
+        List<SiteEntity> se = entities.parallelStream()
+                .filter(siteEntity -> !siteEntity.getStatus().equals(Status.INDEXED)).collect(Collectors.toList());
+                se.forEach(site -> {
             int availableProcessosrs = Runtime.getRuntime().availableProcessors();
             if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
                 forkJoinPool = new ForkJoinPool(availableProcessosrs);
@@ -84,12 +86,11 @@ public class IndexingServiceImpl implements IndexingService {
             }
         });
 
-        try {
-            lemmaService.savePagesLemma();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
+//        try {
+//            lemmaService.savePagesLemma();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
         return new indexStatus(true, null);
     }
 

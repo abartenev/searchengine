@@ -29,30 +29,42 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 public class SearchServiceImpl implements SearchService {
     private final siteRepo siteRepo;
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
-    private String lemmaWord;
     private List<Index> indexList;
     private HashSet<String> lemmaWords;
     private volatile List<SearchResponseData> responseData;
     private SearchResponse response;
     private String currentQuery;
+    private String currentSite;
     private Iterator<List<SearchResponseData>> dataIterator;
+    private final LuceneMorphology ruMorphology;
+    private final LuceneMorphology engMorphology;
 
-    public HashSet<String> getLemmaWords(String pageContent,HashSet<String> pageLemmas){
+    public SearchServiceImpl(searchengine.repositories.siteRepo siteRepo, searchengine.repositories.lemmaRepo lemmaRepo, searchengine.repositories.indexRepo indexRepo) throws IOException {
+        this.siteRepo = siteRepo;
+        this.lemmaRepo = lemmaRepo;
+        this.indexRepo = indexRepo;
+        this.ruMorphology = new RussianLuceneMorphology();
+        this.engMorphology = new EnglishLuceneMorphology();
+    }
+
+    public HashSet<String> getLemmaWords(String pageContent, HashSet<String> pageLemmas){
         HashSet<String> hashSet = new HashSet<>();
         if (pageLemmas == null) {
-            hashSet.addAll(Arrays
-                    .stream(pageContent.split("\\p{Blank}+"))
-                    .map(String::trim)
-                    .map(String::toLowerCase)
-                    .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
-                    .filter(s -> s.length() > 2)
-                    .map(this::getLemmaWord)
-                    .collect(Collectors.toSet()));
+            hashSet.addAll(
+                    Arrays.asList(pageContent.split("\\p{Blank}+"))
+                            .parallelStream()
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                            .filter(s -> s.length() > 2)
+                            .map(this::getLemmaWord)
+                            .collect(Collectors.toSet())
+            );
         } else {
             hashSet.addAll(
                     Arrays.asList(pageContent.split("\\p{Blank}+"))
@@ -69,36 +81,29 @@ public class SearchServiceImpl implements SearchService {
 
     public String getLemmaWord(String query) {
         try {
-            LuceneMorphology ruMorphology = new RussianLuceneMorphology();
             List<String> res = ruMorphology.getMorphInfo(query);
             System.out.println(res.get(0));
             return res.get(0).substring(0, res.get(0).indexOf("|"));
-        } catch (IOException | RuntimeException e) {
+        } catch (RuntimeException e) {
             try {
-                LuceneMorphology engMorphology = new EnglishLuceneMorphology();
                 List<String> res = engMorphology.getMorphInfo(query);
                 System.out.println("Eng = " + res.get(0));
                 return res.get(0).substring(0, res.get(0).indexOf("|"));
-            } catch (IOException | RuntimeException e1) {
+            } catch (RuntimeException e1) {
                 System.out.println("2 Ошибка при обработке слова " + query + " " + e.getLocalizedMessage());
             }
         }
         return null;
     }
 
-    public boolean isListHasWord(String word2check) {
-        String lemmaWordLocal = getLemmaWord(word2check);
-        return lemmaWords.contains(lemmaWordLocal);//lemmaWordLocal.equals(lemmaWord);
-    }
-
     public boolean substrListHasWord(String word2check) {
 
-        for (String word : lemmaWords) {
-            if (word2check.length()>3 && word.length()>3 && word2check.toLowerCase().startsWith(word.substring(0, 4))) {
-                return true;
-            }
-        }
-        return false;
+        return lemmaWords.parallelStream().filter(s ->
+                        word2check.length()>=3 && s.length()>=3 && word2check.toLowerCase().startsWith(s.substring(0, 3))
+                ).anyMatch(s -> {
+            String lem = getLemmaWord(word2check.toLowerCase());
+            return lem != null && lem.equals(s);
+        });
     }
 
     List<Index> indexByLemma(String siteName,String lemmaName) {
@@ -118,9 +123,13 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public SearchResponse getSearchResults(String site, String query, Integer limit) {
+        boolean needNewRequest = dataIterator == null
+                || currentQuery == null || currentSite == null || !currentSite.equals(site)
+                || !currentQuery.equals(query);
         try {
-            if (dataIterator == null || currentQuery == null || !currentQuery.equals(query)) {
+            if (needNewRequest) {
                 currentQuery = query;
+                currentSite = site;
                 response = new SearchResponse();
                 dataIterator = null;
                 responseData = null;
@@ -129,13 +138,11 @@ public class SearchServiceImpl implements SearchService {
                 lemmaWords.forEach(lemmaWord -> {
                     if (indexList == null || indexList.isEmpty()) {
                         indexList = indexByLemma(site, lemmaWord);
-                        System.out.println(indexList.size());
                     } else {
                         List<Index> indexList1 = indexByLemma(site, lemmaWord);
                         HashSet<Page> pagesNextLemma = new HashSet<>();
                         indexList1.forEach(index -> pagesNextLemma.add(index.getPage_id()));
                         indexList.removeIf(index2 -> !pagesNextLemma.contains(index2.getPage_id()));
-                        System.out.println(indexList.size());
                     }
                 });
                 makeResponse(response);
@@ -175,11 +182,10 @@ public class SearchServiceImpl implements SearchService {
                                 indexList.forEach(index -> {
                                     String content = index.getPage_id().getContent();
                                     HashSet<String> reversedWords = getLemmaWords(content,lemmaWords);
-                                    System.out.println(reversedWords.size());
                                     // Найти совпадения
                                     boolean addresults = false;
                                     StringBuilder snippet = new StringBuilder();
-                                    addresults = createSnippet(reversedWords.stream().toList(), content, snippet, addresults);
+                                    addresults = createSnippet(reversedWords.parallelStream().toList(), content, snippet, addresults);
                                     if (addresults) {
                                         SearchResponseData data = new SearchResponseData();
                                         data.setSite(index.getPage_id().getSite_Entity_id().getUrl());
@@ -211,11 +217,8 @@ public class SearchServiceImpl implements SearchService {
 
     private static boolean createSnippet(List<String> reverseLemmaList, String str, StringBuilder snippet, boolean addresults) {
         String fragment2 = null;
-        List<String> replString = reverseLemmaList.stream().map(s -> "<b>"+s+"</b>").collect(Collectors.toList());
+        List<String> replString = reverseLemmaList.parallelStream().map(s -> "<b>"+s+"</b>").collect(Collectors.toList());
         String str2 = StringUtils.replaceEach(str,reverseLemmaList.toArray(new String[0]),replString.toArray(new String[0]));
-//        String patterString = "\\b(" + StringUtils.join(reverseLemmaList,"|") + ")\\b";
-//        Pattern pattern = Pattern.compile(patterString);
-//        Matcher matcher = pattern.matcher(str2);
             // Найти фрагмент текста, в котором находятся совпадения
         for (String wordFromLemma : reverseLemmaList){
             Pattern pattern = Pattern.compile(wordFromLemma, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
@@ -228,17 +231,13 @@ public class SearchServiceImpl implements SearchService {
                     int startPos = (start - 75) < 0 ? 0 : (start - 75);
                     int endPos = (end + 75) > maxLengthText ? maxLengthText : (end + 75);
                     String fragment = str2.substring(startPos, endPos);
-                    //fragment2 = StringUtils.replaceIgnoreCase(fragment,wordFromLemma,"<b>"+wordFromLemma+"</b>");
                     snippet.append("<p>"+fragment+"</p>");
                     addresults = true;
                 } catch (Exception e) {
                     System.out.println(e.getLocalizedMessage());
                 }
                 break;
-                // Вывести фрагмент текста
-                //System.out.println(fragment2);
             }
-            //break;
         }
         return addresults;
     }
