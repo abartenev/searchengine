@@ -3,7 +3,11 @@ package searchengine.services;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionManager;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Index;
 import searchengine.model.Lemma;
@@ -21,18 +25,20 @@ public class LemmaDictServiceImpl implements LemmaDictService {
     private final lemmaRepo lemmaRepo;
     private final indexRepo indexRepo;
 
+    private final PlatformTransactionManager transactionManager;
+
     @Autowired
-    public LemmaDictServiceImpl(lemmaRepo lemmaRepo, indexRepo indexRepo, pageRepo pageRepo) {
+    public LemmaDictServiceImpl(lemmaRepo lemmaRepo, indexRepo indexRepo, PlatformTransactionManager manager) {
         this.lemmaRepo = lemmaRepo;
         this.indexRepo = indexRepo;
+        this.transactionManager = manager;
     }
 
     @Override
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Lock(LockModeType.OPTIMISTIC)
+    //@Transactional
     public void fillLemmaDict(String s, Page page, Long lemmaPageCount) {
-            synchronized (lemmaRepo) {
-                synchronized (indexRepo) {
+            synchronized (/*lemmaRepo*/transactionManager) {
+            //    synchronized (indexRepo) {
                         Lemma lemma = lemmaRepo.findLemmaByNameAndSite(s, page.getSite_Entity_id());
                         if (lemma == null) {
                             lemma = new Lemma();
@@ -59,7 +65,7 @@ public class LemmaDictServiceImpl implements LemmaDictService {
                             lemma.setFrequency(lemma.getFrequency() + lemmaPageCount.intValue());
                             lemmaRepo.save(lemma);
                         }
-                }
+             //   }
             }
     }
 }

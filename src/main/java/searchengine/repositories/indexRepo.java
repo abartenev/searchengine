@@ -22,6 +22,13 @@ public interface indexRepo extends JpaRepository<Index, Integer> {
 
     @Query("SELECT t FROM Index t WHERE t.lemma_id = :lemma")
     List<Index> findIndex4Lemma(@Param("lemma") Lemma lemma);
+
+//    @Query("select t2 from Index t2 WHERE t2.page_id in (" +
+//            "SELECT distinct t.page_id FROM Index t WHERE t.lemma_id in (:lemma))" +
+//            " and t2.lemma_id in (:lemma) order by t2.rank desc")
+    @Query("SELECT t FROM Index t WHERE t.lemma_id in (:lemmas) and t.page_id in (:pages) order by t.rank desc")
+    List<Index> findIndex4Lemmas(@Param("lemmas") List<Lemma> lemmas, @Param("pages") List<Page> pages);
+
     @Query("SELECT t FROM Index t WHERE t.page_id = :page")
     List<Index> findIndex4LemmaNPage(@Param("page") Page page);
 }

@@ -6,7 +6,7 @@ import searchengine.model.SiteEntity;
 import java.util.List;
 
 public interface SearchService {
-    SearchResponse getSearchResults(String site, String query,Integer limit);
+    SearchResponse getSearchResults(String site, String query,Integer limit,Integer offset);
 
     List<SiteEntity> findAllsites();
 }

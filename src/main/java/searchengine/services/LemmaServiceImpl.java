@@ -6,7 +6,12 @@ import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
 import searchengine.repositories.indexRepo;
@@ -16,6 +21,7 @@ import searchengine.repositories.siteRepo;
 import searchengine.services.interfaces.LemmaDictService;
 import searchengine.services.interfaces.LemmaService;
 
+import javax.persistence.LockModeType;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,6 +59,7 @@ public class LemmaServiceImpl implements LemmaService {
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
         List<Page> pages = pageRepo.findAll();
+        //List<Page> pages = pageRepo.findBySiteUrl(siteRepo.findById(15017630).get());
         int availableProcessosrs = Runtime.getRuntime().availableProcessors();
         if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
             forkJoinPool = new ForkJoinPool(availableProcessosrs);
@@ -75,7 +82,7 @@ public class LemmaServiceImpl implements LemmaService {
                                         wordLemmasCount = Arrays.asList(pageText
                                                 .split("\\p{Blank}+")).parallelStream()
                                                 .map(String::trim).map(String::toLowerCase)
-                                                .filter(s -> s.matches("[a-zA-Zа-яА-Я]+"))
+                                                .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                                                 .filter(s -> s.length() > 2)
                                                 .filter(s -> lemmaWord(s) != null)
                                                 .map(word -> lemmaWord(word))
@@ -113,6 +120,7 @@ public class LemmaServiceImpl implements LemmaService {
         };
 
         ForkJoinPool.commonPool().invoke(action);
+
         System.out.println("1: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
 
         RecursiveAction save2db = new RecursiveAction() {
@@ -130,9 +138,9 @@ public class LemmaServiceImpl implements LemmaService {
                             entries.forEach(integerMapEntry -> integerMapEntry.getValue().forEach((s, aLong) ->
                                     {
                                         try {
-                                            synchronized (lemmaDictService) {
+                                            //synchronized (lemmaDictService) {
                                                 lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
-                                            }
+                                            //}
                                         } catch (Exception e) {
                                             System.out.println(e.getLocalizedMessage());
                                         }
