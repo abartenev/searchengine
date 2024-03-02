@@ -30,6 +30,12 @@ public class Lemma {
         this.lemma = lemma;
     }
 
+    public Lemma(String lemma, SiteEntity site_id,Integer freq) {
+        this.site_id = site_id;
+        this.lemma = lemma;
+        this.frequency = freq;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

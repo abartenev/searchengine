@@ -2,15 +2,18 @@ package searchengine.services;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import searchengine.model.Index;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.SiteEntity;
@@ -42,15 +45,18 @@ public class LemmaServiceImpl implements LemmaService {
     private Map<String, Long> wordLemmasCount;
     private final ConcurrentHashMap<Page, Map<String, Long>> wordLemmasCount4page;
     private final LemmaDictService lemmaDictService;
+    private final PlatformTransactionManager transactionManager;
 
     @Autowired
-    public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo, siteRepo siteRepo, LemmaDictService lemmaDictService) {
+    public LemmaServiceImpl(lemmaRepo lemmaRepo, pageRepo pageRepo, indexRepo indexRepo
+            , siteRepo siteRepo, LemmaDictService lemmaDictService,PlatformTransactionManager manager) {
         this.lemmaRepo = lemmaRepo;
         this.pageRepo = pageRepo;
         this.indexRepo = indexRepo;
         this.siteRepo = siteRepo;
         this.lemmaDictService = lemmaDictService;
         this.wordLemmasCount4page = new ConcurrentHashMap<>();
+        this.transactionManager =  manager;
     }
 
     @Override
@@ -58,8 +64,8 @@ public class LemmaServiceImpl implements LemmaService {
         ///////////lemma////////////
         LuceneMorphology ruMorphology = new RussianLuceneMorphology();
         LuceneMorphology engMorphology = new EnglishLuceneMorphology();
-        List<Page> pages = pageRepo.findAll();
-        //List<Page> pages = pageRepo.findBySiteUrl(siteRepo.findById(15017630).get());
+//        List<Page> pages = pageRepo.findAll();
+        List<Page> pages = pageRepo.findBySiteUrl(siteRepo.findById(15017630).get());
         int availableProcessosrs = Runtime.getRuntime().availableProcessors();
         if (forkJoinPool == null || forkJoinPool.getActiveThreadCount() == 0) {
             forkJoinPool = new ForkJoinPool(availableProcessosrs);
@@ -123,11 +129,35 @@ public class LemmaServiceImpl implements LemmaService {
 
         System.out.println("1: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
 
+        ConcurrentHashMap<String,Lemma> lemmaConcurrentHashMap = new ConcurrentHashMap<>();
+
+        ConcurrentHashMap<String,Lemma> map = new ConcurrentHashMap<>();
+        List<Index> indexList = new ArrayList<>();
+        wordLemmasCount4page.forEach((page, stringLongMap) -> {
+            stringLongMap.forEach((s, aLong) -> {
+                String lemmaWord = StringUtils.replaceIgnoreCase(s,"ё","е");
+                Lemma lemma = null;
+                //lemma
+                if (!map.containsKey(lemmaWord)){
+                    lemma = new Lemma(lemmaWord,page.getSite_Entity_id(),aLong.intValue());
+                    map.put(lemmaWord,lemma);
+                } else {
+                    lemma = map.get(lemmaWord);
+                    lemma.setFrequency(lemma.getFrequency() + aLong.intValue());
+                    map.put(lemmaWord,lemma);
+                }
+            });
+        });
+        List<Lemma> lemmaList = map.values().stream().toList();
+        //lemmaDictService.saveLemmas(lemmaList);
+
         RecursiveAction save2db = new RecursiveAction() {
             private volatile List<List<ConcurrentHashMap.Entry<Page, Map<String, Long>>>> lists;
+            private volatile List<Lemma> lemmas;
             @Override
             protected void compute() {
                 List<RecursiveAction> lemmaTasks = new ArrayList<>();
+                lemmas = lemmaRepo.findAll();
                 int parallelCount = ForkJoinTask.getPool().getParallelism();
                 lists = ListUtils.partition(wordLemmasCount4page.entrySet().parallelStream().toList(), parallelCount);
                 lists.forEach(entries -> {
@@ -139,7 +169,7 @@ public class LemmaServiceImpl implements LemmaService {
                                     {
                                         try {
                                             //synchronized (lemmaDictService) {
-                                                lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
+                                                lemmaDictService.saveIndexes(lemmas, s, integerMapEntry.getKey(), aLong);
                                             //}
                                         } catch (Exception e) {
                                             System.out.println(e.getLocalizedMessage());
@@ -155,6 +185,41 @@ public class LemmaServiceImpl implements LemmaService {
             }
         };
         ForkJoinPool.commonPool().invoke(save2db);
+
+
+
+//        RecursiveAction save2db = new RecursiveAction() {
+//            private volatile List<List<ConcurrentHashMap.Entry<Page, Map<String, Long>>>> lists;
+//            @Override
+//            protected void compute() {
+//                List<RecursiveAction> lemmaTasks = new ArrayList<>();
+//                int parallelCount = ForkJoinTask.getPool().getParallelism();
+//                lists = ListUtils.partition(wordLemmasCount4page.entrySet().parallelStream().toList(), parallelCount);
+//                lists.forEach(entries -> {
+//                    RecursiveAction action1 = new RecursiveAction() {
+//                        @Override
+//                        protected void compute() {
+//                            System.out.println("1.2: Thread name: " + Thread.currentThread().getName() + ", entries size = " + entries.size());
+//                            entries.forEach(integerMapEntry -> integerMapEntry.getValue().forEach((s, aLong) ->
+//                                    {
+//                                        try {
+//                                            //synchronized (lemmaDictService) {
+//                                                lemmaDictService.fillLemmaDict(s, integerMapEntry.getKey(), aLong);
+//                                            //}
+//                                        } catch (Exception e) {
+//                                            System.out.println(e.getLocalizedMessage());
+//                                        }
+//                                    }
+//                            ));
+//                        }
+//                    };
+//                    action1.fork();
+//                    lemmaTasks.add(action1);
+//                });
+//                ForkJoinTask.invokeAll(lemmaTasks);
+//            }
+//        };
+//        ForkJoinPool.commonPool().invoke(save2db);
         System.out.println("2: Thread.currentThread().getName()" + Thread.currentThread().getName() + "; ForkJoinPool.commonPool().getRunningThreadCount() = " + ForkJoinPool.commonPool().getRunningThreadCount());
     }
 }
