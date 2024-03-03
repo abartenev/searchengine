@@ -61,8 +61,8 @@ public class SearchServiceImpl implements SearchService {
                             .map(String::toLowerCase)
                             .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                             .filter(s -> s.length() > 2)
-                            //.map(s -> s.replace('ё','е'))
-                            //.map(s -> s.replace('Ё','Е'))
+                            .map(s -> s.replace('ё','е'))
+                            .map(s -> s.replace('Ё','Е'))
                             .map(this::getLemmaWord)
                             .collect(Collectors.toSet())
             );
@@ -73,8 +73,8 @@ public class SearchServiceImpl implements SearchService {
                             .map(String::trim)
                             .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                             .filter(s -> s.length() > 2)
-                            //.map(s -> s.replace('ё','е'))
-                            //.map(s -> s.replace('Ё','Е'))
+                            .map(s -> s.replace('ё','е'))
+                            .map(s -> s.replace('Ё','Е'))
                             .filter(this::substrListHasWord)
                             .collect(Collectors.toSet())
             );
@@ -101,12 +101,12 @@ public class SearchServiceImpl implements SearchService {
 
     public boolean substrListHasWord(String word2check) {
 
-        return lemmaWords.parallelStream().filter(s ->
-                word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 3))
-        ).anyMatch(s -> {
-            String lem = getLemmaWord(word2check.toLowerCase());
-            return lem != null && lem.equals(s);
-        });
+        return lemmaWords.parallelStream()
+                .filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 3)))
+                .anyMatch(s -> {
+                    String lem = getLemmaWord(word2check.toLowerCase());
+                    return lem != null && lem.equals(s);
+                });
     }
 
     List<Index> indexByLemma(String siteName, String lemmaName) {
@@ -125,45 +125,6 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public SearchResponse getSearchResults(String site, String query, Integer limit, Integer offset) {
-//        boolean needNewRequest = dataIterator == null
-//                || currentQuery == null || currentSite == null || !currentSite.equals(site)
-//                || !currentQuery.equals(query);
-//        try {
-//            if (needNewRequest) {
-//                currentQuery = query;
-//                currentSite = site;
-//                response = new SearchResponse();
-//                dataIterator = null;
-//                responseData = null;
-//                indexList = null;
-//                lemmaWords = getLemmaWords(query, null);
-//                lemmaWords.forEach(lemmaWord -> {
-//                    if (indexList == null || indexList.isEmpty()) {
-//                        indexList = indexByLemma(site, lemmaWord);
-//                    } else {
-//                        List<Index> indexList1 = indexByLemma(site, lemmaWord);
-//                        HashSet<Page> pagesNextLemma = new HashSet<>();
-//                        indexList1.forEach(index -> pagesNextLemma.add(index.getPage_id()));
-//                        indexList.removeIf(index2 -> !pagesNextLemma.contains(index2.getPage_id()));
-//                    }
-//                });
-//                makeResponse(response);
-//                dataIterator = ListUtils.partition(responseData, limit).iterator();
-//                if (dataIterator.hasNext()) {
-//                    response.setData(dataIterator.next());
-//                }
-//            } else {
-//                if (dataIterator.hasNext()) {
-//                    response.setData(dataIterator.next());
-//                }
-//            }
-//        } catch (Exception e) {
-//            if (response == null) {
-//                response = new SearchResponse();
-//                response.setError(e.getLocalizedMessage());
-//            }
-//        }
-//        return response;
         boolean needNewRequest = dataIterator == null
                 || currentQuery == null || currentSite == null || !currentSite.equals(site)
                 || !currentQuery.equals(query);
@@ -175,8 +136,7 @@ public class SearchServiceImpl implements SearchService {
                 responseData = null;
                 pageList = null;
                 response = new SearchResponse();
-                lemmaWords = getLemmaWords(query, null);
-//        lemmaWords.parallelStream().collect(Collectors.toList());
+                lemmaWords = getLemmaWords(StringUtils.replaceIgnoreCase(query,"ё","е"), null);
                 Set<Set<Page>> sets = lemmaWords.parallelStream()
                         .map(s -> indexByLemma(site, s))
                         .sorted(Comparator.comparing(indices -> indices.size()))
@@ -187,7 +147,9 @@ public class SearchServiceImpl implements SearchService {
                                 .collect(Collectors.toSet())).collect(Collectors.toSet());
                 Set<Page> res = new HashSet<>();
                 for (Set<Page> p : sets) {
-                    if (res.size() == 0 || res.isEmpty()) {
+                    boolean allPagesNotEmpty = !sets.parallelStream().anyMatch(pages -> pages.size() == 0);
+                    boolean startRetain = res.size() == 0 || res.isEmpty();
+                    if (startRetain && allPagesNotEmpty) {
                         res.addAll(p);
                     } else {
                         res.retainAll(p);
@@ -249,7 +211,7 @@ public class SearchServiceImpl implements SearchService {
                         protected void compute() {
                             System.out.println("Search Thread.currentThread().getName()" + Thread.currentThread().getName());
                             idx.forEach(page -> {
-                                String content = page.getContent();
+                                String content = StringUtils.replaceIgnoreCase(page.getContent(),"ё","е");
                                 HashSet<String> reversedWords = getLemmaWords(content, lemmaWords);
                                 // Найти совпадения
                                 boolean addresults = false;
@@ -257,7 +219,7 @@ public class SearchServiceImpl implements SearchService {
                                 addresults = createSnippet(reversedWords.parallelStream().toList(), content, snippet, addresults);
                                 if (addresults) {
                                     SearchResponseData data = new SearchResponseData();
-                                    data.setSite(/*index.getPage_id().getSite_Entity_id().getUrl()*/"");
+                                    data.setSite("");
                                     data.setSiteName(page.getSite_Entity_id().getName());
                                     data.setUri(page.getPath());
                                     data.setTitle(page.getPath());
@@ -290,7 +252,7 @@ public class SearchServiceImpl implements SearchService {
         String str2 = StringUtils.replaceEach(str, reverseLemmaList.toArray(new String[0]), replString.toArray(new String[0]));
         // Найти фрагмент текста, в котором находятся совпадения
         for (String wordFromLemma : reverseLemmaList) {
-            Pattern pattern = Pattern.compile(wordFromLemma, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
+            Pattern pattern = Pattern.compile("<b>" + wordFromLemma + "</b>", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
             Matcher matcher = pattern.matcher(str2);
             while (matcher.find()) {
                 int start = matcher.start();

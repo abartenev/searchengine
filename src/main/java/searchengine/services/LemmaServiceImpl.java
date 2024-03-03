@@ -72,6 +72,21 @@ public class LemmaServiceImpl implements LemmaService {
         }
         RecursiveAction action = new RecursiveAction() {
             private volatile List<List<Page>> lists;
+
+            public String lemmaWord(String word) {
+                try {
+                    List<String> stringList = ruMorphology.getMorphInfo(word);
+                    return stringList.get(0).substring(0, stringList.get(0).indexOf("|"));
+                } catch (RuntimeException e) {
+                    try {
+                        List<String> engStringList = engMorphology.getMorphInfo(word);
+                        return engStringList.get(0).substring(0, engStringList.get(0).indexOf("|"));
+                    } catch (RuntimeException e1) {
+                        log.info("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage() + e.getStackTrace());
+                    }
+                }
+                return null;
+            }
             @Override
             protected void compute() {
                 int parallelCount = ForkJoinTask.getPool().getParallelism();
@@ -108,21 +123,6 @@ public class LemmaServiceImpl implements LemmaService {
                 }
                 lemmaTasks.forEach(ForkJoinTask::join);
             }
-
-            private String lemmaWord(String word) {
-                try {
-                    List<String> stringList = ruMorphology.getMorphInfo(word);
-                    return stringList.get(0).substring(0, stringList.get(0).indexOf("|"));
-                } catch (RuntimeException e) {
-                    try {
-                        List<String> engStringList = engMorphology.getMorphInfo(word);
-                        return engStringList.get(0).substring(0, engStringList.get(0).indexOf("|"));
-                    } catch (RuntimeException e1) {
-                        log.info("2 Ошибка при обработке слова " + word + " " + e.getLocalizedMessage() + e.getStackTrace());
-                    }
-                }
-                return null;
-            }
         };
 
         ForkJoinPool.commonPool().invoke(action);
@@ -149,7 +149,7 @@ public class LemmaServiceImpl implements LemmaService {
             });
         });
         List<Lemma> lemmaList = map.values().stream().toList();
-        //lemmaDictService.saveLemmas(lemmaList);
+        lemmaDictService.saveLemmas(lemmaList);
 
         RecursiveAction save2db = new RecursiveAction() {
             private volatile List<List<ConcurrentHashMap.Entry<Page, Map<String, Long>>>> lists;
@@ -169,10 +169,12 @@ public class LemmaServiceImpl implements LemmaService {
                                     {
                                         try {
                                             //synchronized (lemmaDictService) {
-                                                lemmaDictService.saveIndexes(lemmas, s, integerMapEntry.getKey(), aLong);
+                                            String lemmaWord = StringUtils.replaceIgnoreCase(s,"ё","е");
+                                                lemmaDictService.saveIndexes(lemmas, lemmaWord, integerMapEntry.getKey(), aLong);
                                             //}
                                         } catch (Exception e) {
                                             System.out.println(e.getLocalizedMessage());
+                                            log.error(s + " error = " + e.getLocalizedMessage());
                                         }
                                     }
                             ));
