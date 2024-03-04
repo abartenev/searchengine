@@ -102,7 +102,7 @@ public class SearchServiceImpl implements SearchService {
     public boolean substrListHasWord(String word2check) {
 
         return lemmaWords.parallelStream()
-                .filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 3)))
+                //.filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 2)))
                 .anyMatch(s -> {
                     String lem = getLemmaWord(word2check.toLowerCase());
                     return lem != null && lem.equals(s);
@@ -164,7 +164,10 @@ public class SearchServiceImpl implements SearchService {
                                     , entities
                             )
                             , res.stream().toList()
-                    ).parallelStream().flatMap(index -> Stream.of(index.getPage_id())).collect(Collectors.toSet());
+                    ).parallelStream()
+                            .flatMap(index -> Stream.of(index.getPage_id()))
+                            //.filter(page -> page.getId().intValue() == 952)
+                            .collect(Collectors.toSet());
                     response.setError(null);
                     makeResponse(response);
                     dataIterator = ListUtils.partition(responseData, limit).iterator();
