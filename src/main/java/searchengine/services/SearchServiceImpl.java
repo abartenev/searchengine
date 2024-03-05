@@ -54,22 +54,52 @@ public class SearchServiceImpl implements SearchService {
     public HashSet<String> getLemmaWords(String pageContent, HashSet<String> pageLemmas) {
         HashSet<String> hashSet = new HashSet<>();
         if (pageLemmas == null) {
-            hashSet.addAll(
-                    Arrays.asList(pageContent.split("\\p{Blank}+"))
-                            .parallelStream()
-                            .map(String::trim)
-                            .map(String::toLowerCase)
-                            .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
-                            .filter(s -> s.length() > 2)
-                            .map(s -> s.replace('ё','е'))
-                            .map(s -> s.replace('Ё','Е'))
-                            .map(this::getLemmaWord)
-                            .collect(Collectors.toSet())
-            );
+//            hashSet.addAll(
+//                    Arrays.asList(pageContent.split("\\p{Blank}+"))
+//                            .parallelStream()
+//                            .map(String::trim)
+//                            .map(String::toLowerCase)
+//                            .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
+//                            .filter(s -> s.length() > 2)
+//                            .map(s -> s.replace('ё','е'))
+//                            .map(s -> s.replace('Ё','Е'))
+//                            .map(this::getLemmaWord)
+//                            .collect(Collectors.toSet())
+//            );
+            Arrays.asList(pageContent.split("\\p{Blank}+"))
+                    .parallelStream()
+                    .map(s -> s.replaceAll("\\p{Punct}",""))
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
+                    .filter(s -> s.length() > 2)
+                    .map(s -> s.replace('ё','е'))
+                    .map(s -> s.replace('Ё','Е'))
+                    .map(ss -> {
+                        try {
+                            List<String> res = ruMorphology.getMorphInfo(ss);
+                            List<String> words = res.parallelStream()
+                                    .map(s1->s1.substring(0,s1.indexOf("|")))
+                                    .filter(s1->s1.startsWith(ss.substring(0,1)))
+                                    .collect(Collectors.toList());
+                            System.out.println(words);
+                            return words;
+                        } catch (RuntimeException e) {
+                            try {
+                                List<String> res = engMorphology.getMorphInfo(ss);
+                                return res.parallelStream().map(s1->s1.substring(0,s1.indexOf("|"))).collect(Collectors.toList());
+                            } catch (RuntimeException e1) {
+                                System.out.println("2 Ошибка при обработке слова " + ss + " " + e.getLocalizedMessage());
+                            }
+                        }
+                        return null;
+                    })
+                    .collect(Collectors.toList()).forEach(hashSet::addAll);
         } else {
             hashSet.addAll(
                     Arrays.asList(pageContent.split("\\p{Blank}+"))
                             .parallelStream()
+                            .map(s -> s.replaceAll("\\p{Punct}",""))
                             .map(String::trim)
                             .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                             .filter(s -> s.length() > 2)
@@ -99,13 +129,40 @@ public class SearchServiceImpl implements SearchService {
         return null;
     }
 
+    public List<String> getLemmaWordList(String query) {
+        try {
+            List<String> res = ruMorphology.getMorphInfo(query);
+            List<String> words = res.parallelStream()
+                    .map(s1->s1.substring(0,s1.indexOf("|")))
+                    .filter(s1->s1.startsWith(query.substring(0,1)))
+                    .collect(Collectors.toList());
+            System.out.println(words);
+            return words;
+        } catch (RuntimeException e) {
+            try {
+                List<String> res = engMorphology.getMorphInfo(query);
+                return res.parallelStream().map(s1->s1.substring(0,s1.indexOf("|"))).collect(Collectors.toList());
+            } catch (RuntimeException e1) {
+                System.out.println("2 Ошибка при обработке слова " + query + " " + e.getLocalizedMessage());
+            }
+        }
+        return null;
+    }
+
     public boolean substrListHasWord(String word2check) {
 
+//        return lemmaWords.parallelStream()
+//                .filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 2)))
+//                .anyMatch(s -> {
+//                    String lem = getLemmaWord(word2check.toLowerCase());
+//                    return lem != null && lem.equals(s);
+//                });
+
         return lemmaWords.parallelStream()
-                //.filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 2)))
+                .filter(s ->word2check.length() >= 3 && s.length() >= 3 && word2check.toLowerCase().startsWith(s.substring(0, 2)))
                 .anyMatch(s -> {
-                    String lem = getLemmaWord(word2check.toLowerCase());
-                    return lem != null && lem.equals(s);
+                    List<String> lem = getLemmaWordList(word2check.toLowerCase());
+                    return lem != null && lem.contains(s);
                 });
     }
 
@@ -146,13 +203,25 @@ public class SearchServiceImpl implements SearchService {
                                 .map(Index::getPage_id)
                                 .collect(Collectors.toSet())).collect(Collectors.toSet());
                 Set<Page> res = new HashSet<>();
-                for (Set<Page> p : sets) {
-                    boolean allPagesNotEmpty = !sets.parallelStream().anyMatch(pages -> pages.size() == 0);
-                    boolean startRetain = res.size() == 0 || res.isEmpty();
-                    if (startRetain && allPagesNotEmpty) {
-                        res.addAll(p);
-                    } else {
-                        res.retainAll(p);
+                if (sets.size() > 2) {
+                    for (Set<Page> p : sets) {
+                        //boolean allPagesNotEmpty = !sets.parallelStream().anyMatch(pages -> pages.size() == 0);
+                        boolean startRetain = res.size() == 0 || res.isEmpty();
+                        if (startRetain) {
+                            res.addAll(p);
+                        } else {
+                            res.retainAll(p);
+                        }
+                    }
+                } else {
+                    for (Set<Page> p : sets) {
+                        boolean allPagesNotEmpty = !sets.parallelStream().anyMatch(pages -> pages.size() == 0);
+                        boolean startRetain = res.size() == 0 || res.isEmpty();
+                        if (startRetain && allPagesNotEmpty) {
+                            res.addAll(p);
+                        } else {
+                            res.retainAll(p);
+                        }
                     }
                 }
                 if (res.size() > 0) {
@@ -166,7 +235,7 @@ public class SearchServiceImpl implements SearchService {
                             , res.stream().toList()
                     ).parallelStream()
                             .flatMap(index -> Stream.of(index.getPage_id()))
-                            //.filter(page -> page.getId().intValue() == 952)
+                            //.filter(page -> page.getId().intValue() == 1988)
                             .collect(Collectors.toSet());
                     response.setError(null);
                     makeResponse(response);
@@ -227,7 +296,7 @@ public class SearchServiceImpl implements SearchService {
                                     data.setUri(page.getPath());
                                     data.setTitle(page.getPath());
                                     //data.setRelevance(Float.toString(index.getRank()));
-                                    data.setSnippet(snippet.toString());
+                                    data.setSnippet(snippet.toString().replace("</b<","</b><"));
                                     responseData.add(data);
                                     response.setResult(true);
                                     response.setCount(response.getCount() + 1);
@@ -246,25 +315,36 @@ public class SearchServiceImpl implements SearchService {
         };
         ForkJoinPool.commonPool().invoke(task1);
         response.setData(responseData.stream().distinct().toList());
+        if (responseData.stream().distinct().toList().size() == 0) {
+            responseData = null;
+            response.setError("На выбранных ресурсах нет такой информации.");
+        }
         ForkJoinPool.commonPool().shutdownNow();
     }
 
     private static boolean createSnippet(List<String> reverseLemmaList, String str, StringBuilder snippet, boolean addresults) {
         String fragment2 = null;
-        List<String> replString = reverseLemmaList.parallelStream().map(s -> "<b>" + s + "</b>").collect(Collectors.toList());
-        String str2 = StringUtils.replaceEach(str, reverseLemmaList.toArray(new String[0]), replString.toArray(new String[0]));
+        String str4 = str;
+        for (String s : reverseLemmaList) {
+            Pattern pattern = Pattern.compile("\\b(" + s + ")\\b", Pattern.UNICODE_CHARACTER_CLASS);
+            Matcher matcher = pattern.matcher(str4);
+            str4 = matcher.replaceAll("<b>"+s+"</b>");
+        }
+
+        //List<String> replString = reverseLemmaList.parallelStream().map(s -> "<b>" + s + "</b>").collect(Collectors.toList());
+        //String str2 = StringUtils.replaceEach(str, reverseLemmaList.toArray(new String[0]), replString.toArray(new String[0]));
         // Найти фрагмент текста, в котором находятся совпадения
         for (String wordFromLemma : reverseLemmaList) {
-            Pattern pattern = Pattern.compile("<b>" + wordFromLemma + "</b>", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.MULTILINE);
-            Matcher matcher = pattern.matcher(str2);
+            Pattern pattern = Pattern.compile("<b>" + wordFromLemma + "</b>", Pattern.UNICODE_CHARACTER_CLASS);
+            Matcher matcher = pattern.matcher(str4);
             while (matcher.find()) {
                 int start = matcher.start();
                 int end = matcher.end();
                 try {
-                    int maxLengthText = str2.length();
+                    int maxLengthText = str4.length();
                     int startPos = (start - 75) < 0 ? 0 : (start - 75);
                     int endPos = (end + 75) > maxLengthText ? maxLengthText : (end + 75);
-                    String fragment = str2.substring(startPos, endPos);
+                    String fragment = str4.substring(startPos, endPos);
                     snippet.append("<p>" + fragment + "</p>");
                     addresults = true;
                 } catch (Exception e) {

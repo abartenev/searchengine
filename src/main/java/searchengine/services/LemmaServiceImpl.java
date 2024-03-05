@@ -102,6 +102,7 @@ public class LemmaServiceImpl implements LemmaService {
                                     try {
                                         wordLemmasCount = Arrays.asList(pageText
                                                 .split("\\p{Blank}+")).parallelStream()
+                                                .map(s -> s.replaceAll("\\p{Punct}",""))
                                                 .map(String::trim).map(String::toLowerCase)
                                                 .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                                                 .filter(s -> s.length() > 2)

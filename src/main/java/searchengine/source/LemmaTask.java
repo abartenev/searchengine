@@ -79,7 +79,9 @@ public class LemmaTask extends RecursiveAction {
             HashSet<String> hashSet = new HashSet<>();
             Hashtable<String, Integer> lemmasOnPage = new Hashtable<>();
             String pageText = page.getContent();
-            hashSet.addAll(Arrays.asList(pageText.split("\\p{Blank}+")).parallelStream().map(String::trim).map(String::toLowerCase)
+            hashSet.addAll(Arrays.asList(pageText.split("\\p{Blank}+")).parallelStream()
+                    .map(s -> s.replaceAll("\\p{Punct}",""))
+                    .map(String::trim).map(String::toLowerCase)
                             .filter(s -> s.matches("[a-zA-Zа-яА-ЯёЁ]+"))
                             .filter(s -> s.length() > 2).collect(Collectors.toSet()));
             for (String word : hashSet) {
